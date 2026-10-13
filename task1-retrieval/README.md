@@ -12,7 +12,7 @@ From the repository root, with Docker running:
 
 ```sh
 docker build --platform linux/amd64 -t vera-task1 task1-retrieval
-docker run --rm --platform linux/amd64 --entrypoint python vera-task1 -m unittest test_baseline
+docker run --rm --platform linux/amd64 --entrypoint python3 vera-task1 -m unittest test_baseline
 ```
 
 The upstream Dockerfile also runs pytest during the build. The upstream base
@@ -30,7 +30,7 @@ for dataset in retrieval-de-spot-check retrieval-en-spot-check retrieval-hessian
 do
   docker run --rm --platform linux/amd64 \
     -v "$PWD/datasets:/datasets:ro" -v "$PWD/runs:/runs" \
-    --entrypoint python vera-task1 /app/baseline.py \
+    --entrypoint python3 vera-task1 /app/baseline.py \
     --dataset "/datasets/$dataset" --wmodel BM25 --output "/runs/$dataset"
 done
 ```
@@ -38,6 +38,23 @@ done
 Qrels are for evaluation only. The system uses queries and corpus documents.
 Evaluate each run against its matching dataset using the commands documented
 in [datasets/README.md](../datasets/README.md).
+
+To run all three datasets and evaluate nDCG@10 locally in one container:
+
+```sh
+mkdir -p runs/bm25
+docker run --rm --network none --platform linux/amd64 --cpus 4 --memory 8g \
+  -v "$PWD/datasets:/datasets:ro" -v "$PWD/runs:/runs" \
+  --entrypoint python3 vera-task1 /app/run_spot_checks.py \
+  --datasets /datasets --output /runs/bm25
+```
+
+Use an empty output directory for each experiment; existing outputs are not overwritten.
+The runner fails on retrieval or evaluation errors and writes per-dataset
+`evaluation.json` files and a combined `summary.json`. It uses the official
+shared evaluator copied from the upstream commit recorded in `UPSTREAM.md`.
+Spot-check queries and judgments are synthetic; their scores verify and compare
+development runs, but do not establish performance on the hidden test set.
 
 ## Event logging
 
@@ -68,5 +85,7 @@ Remove `--dry-run` only for the actual submission. The English dataset ID is
 
 ## Validation status
 
-Source is prepared. Docker build/tests, spot-check executions, evaluation, and
-TIRA dry run are pending because Docker access was unavailable during setup.
+Docker build passed all 20 tests. All three spot checks completed offline and
+passed output-format validation. See [baseline results](BASELINE_RESULTS.md).
+The TIRA submission dry run remains pending because the local TIRA CLI runs under
+incompatible Python 3.8; no submission has been uploaded.
