@@ -4,8 +4,13 @@
    for BM25 from the description for the future cross-encoder. Narrative is
    unused. BM25 still returns up to 1,000 documents. Missing descriptions are
    allowed for BM25 but will fail explicitly when reranking requests them.
-2. **Candidate selection (next):** select a configurable number of BM25 hits
-   per query, and attach their original text and document IDs.
+2. **Candidate selection (implemented):** `candidates.py` selects up to 50 BM25
+   hits per query by default (`--candidate-k` changes this), attaches original
+   text/IDs, query/description, and available raw source metadata, and writes
+   `candidates.jsonl.gz`. Source metadata is read from a local documents JSONL
+   file; if only a dataset ID is supplied, metadata is empty. Original BM25
+   `run.txt.gz` remains unchanged. PyTerrier's zero-based rank is exported as a
+   one-based `bm25_rank`. Candidate text is not chunked or deduplicated yet.
 3. **Semantic duplicate groups (planned):** embed candidates and compare cosine
    similarity using a configurable threshold, initially 0.95. Keep a mapping of
    every original ID to its representative; do not select legal records solely

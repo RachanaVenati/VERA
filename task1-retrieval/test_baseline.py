@@ -415,6 +415,8 @@ class RetrieveTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
+    @patch("baseline.write_candidates")
+    @patch("baseline.prepare_candidates", return_value=[])
     @patch("baseline.retrieve")
     @patch("baseline.create_index")
     @patch("baseline.ir_datasets.load")
@@ -423,6 +425,8 @@ class MainTest(unittest.TestCase):
         load: Mock,
         create_index_mock: Mock,
         retrieve_mock: Mock,
+        prepare_candidates_mock: Mock,
+        write_candidates_mock: Mock,
     ) -> None:
         dataset = dataset_with_languages("en", "en")
         index = object()
@@ -454,6 +458,12 @@ class MainTest(unittest.TestCase):
                 "en",
                 "BM25",
                 Path("output"),
+            )
+            prepare_candidates_mock.assert_called_once_with(
+                dataset, retrieve_mock.return_value, 50, source_directory=None,
+            )
+            write_candidates_mock.assert_called_once_with(
+                [], Path("output/candidates.jsonl.gz"),
             )
 
 

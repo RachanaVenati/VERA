@@ -9,6 +9,7 @@ import pandas as pd
 import pyterrier as pt
 from tira.third_party_integrations import ir_datasets
 from query_fields import retrieval_text
+from candidates import prepare_candidates, write_candidates
 
 # We use the tracker to monitor resource consumption etc. of the indexing and retrieval.
 # The tracking is optional, i.e., you can remove it or switch to an alternative such as repro_eval.
@@ -161,7 +162,10 @@ def retrieve(
     type=click.Path(path_type=Path, file_okay=False),
     help="The output directory.",
 )
-def main(dataset: str, output: Path, wmodel: str) -> None:
+@click.option("--candidate-k", default=50, show_default=True,
+              type=click.IntRange(1, 1000),
+              help="BM25 documents per query to prepare for later reranking.")
+def main(dataset: str, output: Path, wmodel: str, candidate_k: int) -> None:
     ir_dataset = ir_datasets.load(dataset)
 
     try:
@@ -174,7 +178,13 @@ def main(dataset: str, output: Path, wmodel: str) -> None:
     click.echo(f"Detected query language: {language}")
 
     index = create_index(ir_dataset, language, output)
-    retrieve(ir_dataset, index, language, wmodel, output)
+    run = retrieve(ir_dataset, index, language, wmodel, output)
+    candidates = prepare_candidates(
+        ir_dataset, run, candidate_k,
+        source_directory=Path(dataset) if Path(dataset).is_dir() else None,
+    )
+    write_candidates(candidates, output / "candidates.jsonl.gz")
+    click.echo(f"Prepared {len(candidates)} candidates (up to {candidate_k} per query).")
 
 
 if __name__ == "__main__":

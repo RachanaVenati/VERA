@@ -17,6 +17,20 @@ All 65 sample queries were checked through the real loader: the explicit short
 query matches the former `default_text()` input, and descriptions are available
 for each query. The existing BM25 scores therefore remain a valid reference.
 
+The second stage, `candidates.py`, prepares up to 50 BM25 hits per query in
+`candidates.jsonl.gz`. Each record includes `qid`, `doc_id`, `bm25_rank` (starting
+at 1), `bm25_score`, `query`, `description`, original `text`, and available source
+`metadata`. This extra file is an intermediate artifact; `run.txt.gz` still
+contains the original BM25 results, up to 1,000 per query. No semantic duplicate
+removal or reranking is applied. With fewer matching documents, fewer candidates
+are produced. Only selected document texts are retained in memory.
+
+To change the candidate count, append `--candidate-k 100` to a `baseline.py`
+invocation. Missing descriptions are exported as null; reranking will require
+them when enabled. Raw metadata is available for local input directories with
+`documents.jsonl` or `documents.jsonl.gz`; dataset-ID inputs export empty metadata
+because the TIRA document loader exposes only ID and text.
+
 ## Docker build and tests
 
 From the repository root, with Docker running:
@@ -96,7 +110,9 @@ Remove `--dry-run` only for the actual submission. The English dataset ID is
 
 ## Validation status
 
-The modular query-field change passed 24 Docker tests. All three original BM25 spot checks completed offline and
+The candidate-selection stage passed 29 Docker tests. All three original BM25 spot checks completed offline and
 passed output-format validation. See [baseline results](BASELINE_RESULTS.md).
+All three datasets were rerun with candidate preparation enabled. TREC outputs
+match the baseline exactly; see [candidate verification](CANDIDATE_RESULTS.md).
 The TIRA submission dry run remains pending because the local TIRA CLI runs under
 incompatible Python 3.8; no submission has been uploaded.
