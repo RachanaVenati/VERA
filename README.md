@@ -9,4 +9,4 @@ UniAgent 2026 submissions developed in order: Task 1 retrieval, then Task 2 solv
 Each task is submitted separately to TIRA from its own directory. Development and testing use Docker.
 See [Task 1 instructions](task1-retrieval/README.md).
 
-Current status: Task 1 Docker build passed 20 tests and all three offline spot checks passed output-format validation. See [BM25 results](task1-retrieval/BASELINE_RESULTS.md). TIRA submission dry run is pending.
+Current status: Task 1 Docker build passed 24 tests after separating retrieval and reranking query fields. All three original offline BM25 spot checks passed output-format validation. See [BM25 results](task1-retrieval/BASELINE_RESULTS.md) and the [modular pipeline plan](task1-retrieval/PIPELINE.md). TIRA submission dry run is pending.

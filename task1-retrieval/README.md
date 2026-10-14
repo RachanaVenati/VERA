@@ -6,6 +6,17 @@ provided corpus with language-specific stemming and stopwords, and writes
 `run.txt.gz` in TREC format, plus language and resource metadata.
 See [upstream provenance](UPSTREAM.md).
 
+## Modular implementation
+
+See [PIPELINE.md](PIPELINE.md) for the staged plan. The first stage is implemented
+in `query_fields.py`: BM25 explicitly reads `query`; `reranking_text()` exposes
+`original_query.description` for the future cross-encoder and rejects missing
+descriptions. Narrative is unused. Semantic deduplication and reranking are
+planned stages and are not active yet.
+All 65 sample queries were checked through the real loader: the explicit short
+query matches the former `default_text()` input, and descriptions are available
+for each query. The existing BM25 scores therefore remain a valid reference.
+
 ## Docker build and tests
 
 From the repository root, with Docker running:
@@ -85,7 +96,7 @@ Remove `--dry-run` only for the actual submission. The English dataset ID is
 
 ## Validation status
 
-Docker build passed all 20 tests. All three spot checks completed offline and
+The modular query-field change passed 24 Docker tests. All three original BM25 spot checks completed offline and
 passed output-format validation. See [baseline results](BASELINE_RESULTS.md).
 The TIRA submission dry run remains pending because the local TIRA CLI runs under
 incompatible Python 3.8; no submission has been uploaded.

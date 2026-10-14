@@ -8,6 +8,7 @@ from tqdm import tqdm
 import pandas as pd
 import pyterrier as pt
 from tira.third_party_integrations import ir_datasets
+from query_fields import retrieval_text
 
 # We use the tracker to monitor resource consumption etc. of the indexing and retrieval.
 # The tracking is optional, i.e., you can remove it or switch to an alternative such as repro_eval.
@@ -104,7 +105,7 @@ def retrieve(
         [
             {
                 "qid": str(query.query_id),
-                "query": " ".join(tokeniser.getTokens(query.default_text())),
+                "query": " ".join(tokeniser.getTokens(retrieval_text(query))),
             }
             for query in dataset.queries_iter()
         ],
