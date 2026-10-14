@@ -7,6 +7,7 @@ RUN python3 -m pip install --no-cache-dir trectools==0.0.50
 ADD german-stopwords.txt test_baseline.py baseline.py /app/
 COPY query_fields.py test_query_fields.py /app/
 COPY candidates.py test_candidates.py /app/
+COPY semantic_duplicates.py test_semantic_duplicates.py /app/
 COPY evaluate_submission.py run_spot_checks.py /app/
 
 RUN PYTHONPATH=. pytest .

@@ -14,3 +14,7 @@ after writing the original BM25 run. Candidate-selection tests are our additions
 The Dockerfile pins the upstream image by digest and includes our spot-check
 runner plus the official `cikm26/evaluation/evaluate_submission.py` evaluator.
 The retrieval spot-check datasets were copied from the same commit.
+
+The standalone semantic grouping modules, optional image, and additional tests
+are VERA additions. The embedding model and revision are recorded in
+`text_embeddings.py` and `Dockerfile.semantic`; the image includes the model card.

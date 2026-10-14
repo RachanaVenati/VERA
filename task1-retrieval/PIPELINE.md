@@ -11,17 +11,21 @@
    file; if only a dataset ID is supplied, metadata is empty. Original BM25
    `run.txt.gz` remains unchanged. PyTerrier's zero-based rank is exported as a
    one-based `bm25_rank`. Candidate text is not chunked or deduplicated yet.
-3. **Semantic duplicate groups (planned):** embed candidates and compare cosine
-   similarity using a configurable threshold, initially 0.95. Keep a mapping of
-   every original ID to its representative; do not select legal records solely
-   by date. Inspect groups before deciding whether to remove IDs from output.
+3. **Semantic duplicate groups (implemented standalone):** `text_embeddings.py`
+   loads local multilingual E5-small and pools all 480-token chunks.
+   `semantic_duplicates.py` groups per query at cosine threshold 0.95 by default.
+   `group_duplicates.py` saves representative/member mappings and scores.
+   Highest BM25 rank chooses representatives; dates never replace records.
+   Known legal records need matching ECLI, or court/file/date. Without legal
+   metadata, identity protection cannot be applied. All IDs remain intact.
+   Inspect groups before changing ranking or reusing reranker scores.
 4. **Cross-encoder reranking (planned):** score description–text pairs with a
    multilingual model. Handle long text explicitly through chunking and document
    score aggregation. Benchmark CPU runtime and nDCG@10 against BM25.
 5. **Final output (planned integration):** write ranked original document IDs in
    the existing TREC format, recording the experiment configuration.
 
-Each stage will have its own module and tests. No embedding or cross-encoder
-model is loaded in the current program. Model choice, candidate count, chunk
-handling, and duplicate-output policy will be made explicit when those stages
-are implemented. Models must be available locally during offline execution.
+Each implemented stage has its own module and tests. BM25 still runs without
+embedding dependencies. The optional semantic Docker image includes a pinned
+embedding model downloaded at build time and loads it offline. Cross-encoder
+reranking and final group-to-document score integration are not implemented yet.

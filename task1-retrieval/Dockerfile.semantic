@@ -1,0 +1,10 @@
+# Optional semantic stage, separate from the lightweight BM25 image.
+# Build vera-task1 from Dockerfile first.
+FROM vera-task1:latest
+RUN python3 -m pip install --no-cache-dir torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+RUN python3 -m pip install --no-cache-dir sentence-transformers==3.4.1 transformers==4.48.3
+COPY text_embeddings.py semantic_duplicates.py group_duplicates.py test_semantic_duplicates.py /app/
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('intfloat/multilingual-e5-small', revision='614241f622f53c4eeff9890bdc4f31cfecc418b3', local_dir='/models/multilingual-e5-small', allow_patterns=['*.json', '*.safetensors', '*.model', 'README.md'])"
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+COPY test_text_embeddings.py /app/
+RUN PYTHONPATH=. pytest .

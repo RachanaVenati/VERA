@@ -11,8 +11,8 @@ See [upstream provenance](UPSTREAM.md).
 See [PIPELINE.md](PIPELINE.md) for the staged plan. The first stage is implemented
 in `query_fields.py`: BM25 explicitly reads `query`; `reranking_text()` exposes
 `original_query.description` for the future cross-encoder and rejects missing
-descriptions. Narrative is unused. Semantic deduplication and reranking are
-planned stages and are not active yet.
+descriptions. Narrative is unused. Semantic grouping is available as a separate
+command described below; cross-encoder reranking is not active yet.
 All 65 sample queries were checked through the real loader: the explicit short
 query matches the former `default_text()` input, and descriptions are available
 for each query. The existing BM25 scores therefore remain a valid reference.
@@ -30,6 +30,51 @@ invocation. Missing descriptions are exported as null; reranking will require
 them when enabled. Raw metadata is available for local input directories with
 `documents.jsonl` or `documents.jsonl.gz`; dataset-ID inputs export empty metadata
 because the TIRA document loader exposes only ID and text.
+
+## Semantic duplicate grouping (stage 3)
+
+Build the optional image after the BM25 image:
+
+```sh
+docker build --platform linux/amd64 -t vera-task1 task1-retrieval
+docker build --platform linux/amd64 -f task1-retrieval/Dockerfile.semantic \
+  -t vera-task1-semantic task1-retrieval
+```
+
+The image installs CPU-only PyTorch and downloads a pinned revision of
+`intfloat/multilingual-e5-small` at build time. Model loading and execution are
+offline. Dependencies are recorded in `requirements-semantic.txt`.
+
+For each dataset, run the separate grouping stage on its candidates:
+
+```sh
+docker run --rm --network none --platform linux/amd64 --cpus 4 --memory 8g \
+  -v "$PWD/runs:/runs" --entrypoint python3 vera-task1-semantic \
+  /app/group_duplicates.py \
+  --candidates /runs/candidates-step2/retrieval-de-spot-check/candidates.jsonl.gz \
+  --output /runs/semantic-groups/retrieval-de-spot-check --threshold 0.95
+```
+
+Use a fresh output directory. Outputs are `duplicate-groups.jsonl.gz` and
+`summary.json`. Each group records the query ID, representative document ID,
+every member ID, original BM25 rank, and cosine similarity to the representative.
+The summary records model revision, threshold, group counts, and runtime.
+
+`semantic_duplicates.py` contains grouping logic; `text_embeddings.py` contains
+the model adapter and long-document pooling; `group_duplicates.py` is the CLI.
+Grouping is per query. Every member must meet the threshold directly against
+its representative, avoiding transitive chains. Exact text is embedded once
+per execution, even when it appears in several query result sets.
+
+Groups are suggestions for review: 0.95 is experimental and model-dependent.
+Dates, numbers, exceptions, and negation can still differ at high similarity.
+Original candidates and BM25 rankings are preserved. Known legal identities
+must match for grouping; no newest-date rule is applied. Without source metadata,
+legal identity checks cannot protect those pairs. Full text is covered through
+480-token chunks and a token-count-weighted mean, but pooled similarity does
+not prove all chunks are duplicates. The embedding model uses the same `query: `
+prefix on both documents, as required for symmetric similarity by its
+[model card](https://huggingface.co/intfloat/multilingual-e5-small).
 
 ## Docker build and tests
 
@@ -116,3 +161,8 @@ All three datasets were rerun with candidate preparation enabled. TREC outputs
 match the baseline exactly; see [candidate verification](CANDIDATE_RESULTS.md).
 The TIRA submission dry run remains pending because the local TIRA CLI runs under
 incompatible Python 3.8; no submission has been uploaded.
+
+Semantic stage verification: 37 tests passed in the optional image and three
+offline five-candidate pilots completed. See [semantic results](SEMANTIC_RESULTS.md),
+including an observed case of related pages grouped above 0.95. Full-set threshold
+calibration and cross-encoder reranking remain pending.
