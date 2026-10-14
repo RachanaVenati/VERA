@@ -12,7 +12,8 @@ See [PIPELINE.md](PIPELINE.md) for the staged plan. The first stage is implement
 in `query_fields.py`: BM25 explicitly reads `query`; `reranking_text()` exposes
 `original_query.description` for the future cross-encoder and rejects missing
 descriptions. Narrative is unused. Semantic grouping is available as a separate
-command described below; cross-encoder reranking is not active yet.
+command described below; description-based cross-encoder reranking is also
+available as a separate command. Neither is automatically run by `baseline.py`.
 All 65 sample queries were checked through the real loader: the explicit short
 query matches the former `default_text()` input, and descriptions are available
 for each query. The existing BM25 scores therefore remain a valid reference.
@@ -77,6 +78,57 @@ prefix on both documents, as required for symmetric similarity by its
 [model card](https://huggingface.co/intfloat/multilingual-e5-small).
 
 ## Docker build and tests
+
+### Cross-encoder reranking (stage 4)
+
+Build the BM25 and semantic images first, then:
+
+```sh
+docker build --platform linux/amd64 -f task1-retrieval/Dockerfile.reranking \
+  -t vera-task1-reranking task1-retrieval
+```
+
+The image packages a pinned revision of
+`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (multilingual, including German and
+English). It uses the CPU libraries already installed in the semantic image.
+The model card and weights are downloaded at build time; runtime is offline.
+
+Run it on a prepared candidate set:
+
+```sh
+docker run --rm --network none --platform linux/amd64 --cpus 4 --memory 8g \
+  -v "$PWD/runs:/runs" --entrypoint python3 vera-task1-reranking \
+  /app/rerank.py \
+  --candidates /runs/candidates-step2/retrieval-de-spot-check/candidates.jsonl.gz \
+  --output /runs/reranked/retrieval-de-spot-check
+```
+
+Optionally add `--groups /runs/semantic-groups/retrieval-de-spot-check/duplicate-groups.jsonl.gz`
+to annotate the results with groups from exactly the same candidate set. Every
+candidate ID must be represented once in that file. Semantic group membership
+does not transfer scores between different texts. Only identical text paired
+with the identical description reuses a score; all original IDs remain ranked.
+
+`cross_encoder.py` handles local inference and token chunks. `reranking.py`
+handles score reuse, ordering, and TREC output. `rerank.py` is the CLI.
+Input is the description, not the short query or narrative. Missing descriptions
+fail explicitly. The full description repeats in each document chunk; overly
+long descriptions fail rather than being silently truncated. Defaults are 512
+total tokens per pair, 64 overlapping document tokens, and batches of 16 pairs.
+These are configurable with `--max-length`, `--chunk-overlap`, and `--batch-size`.
+The highest chunk relevance logit becomes the document score; it is not a
+probability. Ties use original BM25 rank, then document ID. Maximum aggregation
+can favor longer documents and needs quality evaluation.
+
+Outputs are `reranked-candidates.jsonl.gz`, `run.txt.gz`, and `summary.json`.
+Scored candidates retain original BM25 rank/score, text, description, metadata,
+new rank/score, chunk count, best chunk index, and score-source document ID.
+The TREC run contains only the supplied candidates (normally up to 50 per query).
+The original up-to-1,000 BM25 run is preserved separately; merging its tail and
+integrating the full submission entry point belong to the next stage. Use a
+fresh output directory for each run.
+
+### BM25 image
 
 From the repository root, with Docker running:
 
@@ -165,4 +217,9 @@ incompatible Python 3.8; no submission has been uploaded.
 Semantic stage verification: 37 tests passed in the optional image and three
 offline five-candidate pilots completed. See [semantic results](SEMANTIC_RESULTS.md),
 including an observed case of related pages grouped above 0.95. Full-set threshold
-calibration and cross-encoder reranking remain pending.
+calibration remains pending. Cross-encoder reranking is now available separately.
+
+Cross-encoder verification: all 45 Docker tests passed, and five-candidate offline
+pilots completed for each dataset. See [reranking verification](RERANKING_RESULTS.md).
+Full candidate-set benchmarking and final TIRA entry-point integration are pending;
+no improvement over BM25 is claimed from these pilots.

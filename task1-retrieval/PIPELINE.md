@@ -19,13 +19,19 @@
    Known legal records need matching ECLI, or court/file/date. Without legal
    metadata, identity protection cannot be applied. All IDs remain intact.
    Inspect groups before changing ranking or reusing reranker scores.
-4. **Cross-encoder reranking (planned):** score description–text pairs with a
-   multilingual model. Handle long text explicitly through chunking and document
-   score aggregation. Benchmark CPU runtime and nDCG@10 against BM25.
+4. **Cross-encoder reranking (implemented standalone):** `cross_encoder.py`
+   scores description/document pairs using pinned multilingual mMARCO MiniLM.
+   Every document token is covered in overlapping chunks; the maximum chunk
+   logit is the document score. `reranking.py` orders candidates, preserves all
+   IDs, and reuses scores only for identical description/text pairs. Semantic
+   groups are annotations, since high similarity did not prove interchangeability
+   in stage 3. `rerank.py` writes scored candidates and a candidate-only TREC run.
+   Full-set CPU benchmarking and nDCG@10 comparison remain to be performed.
 5. **Final output (planned integration):** write ranked original document IDs in
    the existing TREC format, recording the experiment configuration.
 
 Each implemented stage has its own module and tests. BM25 still runs without
 embedding dependencies. The optional semantic Docker image includes a pinned
-embedding model downloaded at build time and loads it offline. Cross-encoder
-reranking and final group-to-document score integration are not implemented yet.
+embedding model downloaded at build time and loads it offline. The optional
+reranking image adds a locally packaged cross-encoder. Final pipeline integration
+and merging the original BM25 tail are not implemented yet.

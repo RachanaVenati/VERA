@@ -18,3 +18,7 @@ The retrieval spot-check datasets were copied from the same commit.
 The standalone semantic grouping modules, optional image, and additional tests
 are VERA additions. The embedding model and revision are recorded in
 `text_embeddings.py` and `Dockerfile.semantic`; the image includes the model card.
+
+The cross-encoder adapter, reranking logic/CLI, optional reranking image, and
+additional tests are VERA additions. Its pinned model revision is recorded in
+`cross_encoder.py` and `Dockerfile.reranking`; the image includes the model card.
