@@ -1,5 +1,7 @@
-click
-python-terrier==1.0
-tira>=0.0.203
-tirex-tracker>=0.2.23
+# Retrieval/JVM dependencies come from the pinned organizer image.
+# Torch is installed from the CPU wheel index before this file.
+torch==2.6.0
+sentence-transformers==3.4.1
+transformers==4.48.3
+huggingface-hub==0.36.2
 trectools==0.0.50

@@ -62,11 +62,13 @@ def detect_query_language(dataset) -> str:
     return languages.pop()
 
 
-def create_index(dataset, language: str, output_dir: Path | None = None):
+def create_index(dataset, language: str, output_dir: Path | None = None,
+                 index_directory: Path | None = None):
     if language not in RETRIEVAL_CONFIGURATION:
         raise ValueError(f"Unsupported language: {language}")
 
-    index_directory = Path(tempfile.mkdtemp(prefix="uniagent-retrieval_"))
+    if index_directory is None:
+        index_directory = Path(tempfile.mkdtemp(prefix="uniagent-retrieval_"))
     if output_dir is None:
         output_dir = Path(tempfile.mkdtemp(prefix="uniagent-index-metadata_"))
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -80,7 +82,7 @@ def create_index(dataset, language: str, output_dir: Path | None = None):
     )
     docs_to_index = (
         {"docno": str(document.doc_id), "text": document.default_text()}
-        for document in tqdm(list(dataset.docs_iter()), "Index documents")
+        for document in tqdm(dataset.docs_iter(), "Index documents")
     )
 
     with tracking(export_file_path=output_dir / "index-ir-metadata.yml"):
@@ -124,7 +126,7 @@ def retrieve(
         metadata_directory = output
 
     with tracking(export_file_path=metadata_directory / "retrieval-ir-metadata.yml"):
-        ret = pt.terrier.Retriever(index, wmodel=wmodel, verbose=True).transform(topics)
+        ret = pt.terrier.Retriever(index, wmodel=wmodel, num_results=1000, verbose=True).transform(topics)
     if output is not None:
         pt.io.write_results(ret, output / "run.txt.gz")
     return ret

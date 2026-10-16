@@ -2,10 +2,15 @@
 
 from pathlib import Path
 import math
+import time
 
 MODEL_ID = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 MODEL_REVISION = "1427fd652930e4ba29e8149678df786c240d8825"
 DEFAULT_MODEL_PATH = "/models/mmarco-cross-encoder"
+
+
+class RerankingBudgetExceeded(RuntimeError):
+    """Stop a query's reranking prefix while preserving its remaining BM25 tail."""
 
 
 def pair_chunks(tokenizer, description: str, text: str,
@@ -67,11 +72,39 @@ class CrossEncoderScorer:
 
     def _score_features(self, features: list[dict]) -> list[float]:
         scores = []
+        last_batch_seconds = 0.0
         with self.torch.inference_mode():
             for start in range(0, len(features), self.batch_size):
-                batch = self.tokenizer.pad(features[start:start + self.batch_size],
+                deadline = getattr(self, "deadline", None)
+                reserve = max(5.0, 2*last_batch_seconds)
+                if deadline is not None and time.monotonic() + reserve >= deadline:
+                    raise RerankingBudgetExceeded("Per-query reranking time budget reached.")
+                portion = features[start:start + self.batch_size]
+                batch = self.tokenizer.pad(portion,
                                            padding=True, return_tensors="pt")
-                scores.extend(self.model(**batch).logits.reshape(-1).tolist())
+                context = getattr(self, "trace_context", None)
+                inputs = {"document_id": context["doc_id"], "description": context["description"],
+                          "chunk_start_index": start,
+                          "pairs": [{"input_ids": f["input_ids"],
+                                     "text": self.tokenizer.decode(f["input_ids"])}
+                                    for f in portion]} if context else None
+                started = time.monotonic()
+                try:
+                    values = self.model(**batch).logits.reshape(-1).tolist()
+                    if not all(math.isfinite(value) for value in values):
+                        raise ValueError("Cross-encoder returned non-finite logits.")
+                except Exception as error:
+                    if context:
+                        context["trace"].emit(context["qid"], "model_call", context["parent"],
+                                              inputs=inputs, status="error", error=str(error))
+                    raise
+                if context:
+                    context["last_event"] = context["trace"].emit(context["qid"], "model_call", context["parent"],
+                                          inputs=inputs, output={"chunk_relevance_logits": values,
+                                          "input_tokens": sum(len(f["input_ids"]) for f in portion),
+                                          "seconds": time.monotonic() - started})
+                last_batch_seconds = time.monotonic() - started
+                scores.extend(values)
         return scores
 
     def score(self, description: str, text: str) -> dict:

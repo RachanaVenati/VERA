@@ -1,3 +1,5 @@
+> Historical development-stage report. See the [current submission](../../../task1-retrieval/README.md).
+
 # BM25 baseline results
 
 Docker build: 20 tests passed. All three datasets completed with network disabled.
@@ -12,7 +14,7 @@ Local limits: four CPU cores and 8 GiB RAM, linux/amd64 on Apple Silicon.
 
 All three runs passed the official TIRA evaluator's output-format validation.
 
-Raw runs, resource metadata, and evaluation JSON are in `../runs/bm25-offline/` (ignored by Git).
+Raw runs, resource metadata, and evaluation JSON are in `../../../runs/bm25-offline/` (ignored by Git).
 
 These spot-check queries and judgments are synthetic. Do not interpret these scores as hidden-test performance.
 

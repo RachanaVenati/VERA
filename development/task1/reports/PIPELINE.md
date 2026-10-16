@@ -1,3 +1,5 @@
+> Historical development-stage report. See the [current submission](../../../task1-retrieval/README.md).
+
 # Retrieval pipeline, implemented in stages
 
 1. **Query fields (implemented):** `query_fields.py` separates the short query

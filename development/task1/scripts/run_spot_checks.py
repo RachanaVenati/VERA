@@ -19,19 +19,21 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--datasets", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--wmodel", default="BM25")
+    parser.add_argument("--mode", choices=["bm25", "rerank"], default="rerank")
+    parser.add_argument("--candidate-k", type=int, default=50)
+    parser.add_argument("--dataset-name", choices=DATASETS, action="append")
     args = parser.parse_args()
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("--output must be empty; choose a new directory for each experiment")
     args.output.mkdir(parents=True, exist_ok=True)
     reports = {}
-    for name in DATASETS:
+    for name in args.dataset_name or DATASETS:
         dataset = args.datasets / name
         output = args.output / name
         subprocess.run(
-            [sys.executable, str(Path(__file__).with_name("baseline.py")),
+            [sys.executable, "/app/submission.py",
              "--dataset", str(dataset), "--output", str(output),
-             "--wmodel", args.wmodel],
+             "--mode", args.mode, "--candidate-k", str(args.candidate_k)],
             check=True,
         )
         reports[name] = run_tira_evaluate(output, dataset, "retrieval")

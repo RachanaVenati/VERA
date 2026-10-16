@@ -1,3 +1,5 @@
+> Historical development-stage report. See the [current submission](../../../task1-retrieval/README.md).
+
 # Cross-encoder reranking verification
 
 The optional reranking Docker image passed all 45 tests. The real pinned multilingual mMARCO MiniLM cross-encoder completed three offline pilots with four CPU cores and an 8 GiB container limit.
@@ -24,4 +26,4 @@ Outputs contain only supplied candidates (normally at most 50 per query), with e
 
 Model: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, revision `1427fd652930e4ba29e8149678df786c240d8825`. Defaults: 512 tokens per pair, 64 overlapping document tokens, batch size 16, CPU inference, no runtime model downloads.
 
-Outputs: `../runs/reranking-pilot/<dataset>/reranked-candidates.jsonl.gz`, `run.txt.gz`, and `summary.json` (ignored by Git).
+Outputs: `../../../runs/reranking-pilot/<dataset>/reranked-candidates.jsonl.gz`, `run.txt.gz`, and `summary.json` (ignored by Git).

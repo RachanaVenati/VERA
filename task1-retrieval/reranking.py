@@ -3,6 +3,7 @@
 import gzip
 import math
 from pathlib import Path
+from cross_encoder import RerankingBudgetExceeded
 
 
 def rerank_candidates(records: list[dict], scorer, groups: list[dict] | None = None) -> list[dict]:
@@ -39,11 +40,17 @@ once. Each query's score ties are broken by original BM25 rank and document ID.
                 representatives[key] = group["representative_id"]
         if representatives.keys() != seen:
             raise ValueError("Semantic groups must cover exactly the input candidate IDs.")
-    cache, output = {}, []
+    cache, output, limited_queries = {}, [], set()
     for record in sorted(records, key=lambda r: (r["qid"], r["bm25_rank"], r["doc_id"])):
+        if record["qid"] in limited_queries:
+            continue
         key = (record["description"], record["text"])
         if key not in cache:
-            result = scorer.score(*key)
+            try:
+                result = scorer.score(*key)
+            except RerankingBudgetExceeded:
+                limited_queries.add(record["qid"])
+                continue
             if not math.isfinite(result["score"]):
                 raise ValueError("Cross-encoder returned a non-finite document score.")
             cache[key] = (result, record["doc_id"])

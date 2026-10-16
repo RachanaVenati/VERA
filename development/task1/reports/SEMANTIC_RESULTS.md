@@ -1,3 +1,5 @@
+> Historical development-stage report. See the [current submission](../../../task1-retrieval/README.md).
+
 # Semantic grouping verification
 
 BM25 image: 35 Docker tests passed. Optional semantic image: 37 tests passed.
@@ -22,4 +24,4 @@ Long texts are processed in all 480-token chunks and pooled, rather than embeddi
 
 Model: `intfloat/multilingual-e5-small`, revision `614241f622f53c4eeff9890bdc4f31cfecc418b3`.
 
-Outputs: `../runs/semantic-pilot/<dataset>/duplicate-groups.jsonl.gz` and `summary.json` (ignored by Git). Full candidate-set grouping and threshold calibration remain pending. Cross-encoder reranking is not yet implemented.
+Outputs: `../../../runs/semantic-pilot/<dataset>/duplicate-groups.jsonl.gz` and `summary.json` (ignored by Git). Full candidate-set grouping and threshold calibration remain pending. Cross-encoder reranking is not yet implemented.

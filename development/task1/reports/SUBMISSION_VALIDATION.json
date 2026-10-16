@@ -1,0 +1,60 @@
+{
+  "unit_tests_passed": 52,
+  "official_tira_dry_runs": "passed for all three datasets",
+  "audits": {
+    "retrieval-de-spot-check": {
+      "queries": 25,
+      "results": 10541,
+      "events": {
+        "input": 25,
+        "observation": 1096,
+        "model_call": 808,
+        "decision": 25
+      },
+      "seconds": 1467.043550379,
+      "max_case_reranking_seconds": 227.12209784899937,
+      "budget_limited_queries": [
+        "38"
+      ],
+      "audit": "passed"
+    },
+    "retrieval-en-spot-check": {
+      "queries": 25,
+      "results": 25000,
+      "events": {
+        "input": 25,
+        "observation": 1275,
+        "model_call": 1152,
+        "decision": 25
+      },
+      "seconds": 1321.753668019,
+      "max_case_reranking_seconds": 73.63367977999985,
+      "budget_limited_queries": [],
+      "audit": "passed"
+    },
+    "retrieval-hessian-law-de-spot-check": {
+      "queries": 15,
+      "results": 10764,
+      "events": {
+        "input": 15,
+        "observation": 638,
+        "model_call": 757,
+        "decision": 15
+      },
+      "seconds": 2627.112519324,
+      "max_case_reranking_seconds": 240.50228398500076,
+      "budget_limited_queries": [
+        "10",
+        "11",
+        "13",
+        "14",
+        "3",
+        "7"
+      ],
+      "audit": "passed"
+    }
+  },
+  "upload_performed": false,
+  "git_commit_and_sync": "not performed; approval declined",
+  "relevance_score_reevaluation": "not performed; command declined"
+}

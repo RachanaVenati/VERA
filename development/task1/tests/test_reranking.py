@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from cross_encoder import CrossEncoderScorer, pair_chunks
+from cross_encoder import RerankingBudgetExceeded
 from reranking import rerank_candidates, write_reranked_run
 
 
@@ -37,6 +38,25 @@ class FakeTokenizer:
 
 
 class RerankingTest(unittest.TestCase):
+    def test_time_budget_retains_contiguous_prefix_and_continues_next_query(self):
+        class BudgetScorer(FakeScorer):
+            def score(self, description, text):
+                if text == "budget":
+                    raise RerankingBudgetExceeded()
+                return super().score(description, text)
+        records = [candidate("a", 1, "1"), candidate("b", 2, "budget"),
+                   candidate("c", 3, "9"), candidate("d", 1, "2", qid="2")]
+        result = rerank_candidates(records, BudgetScorer())
+        self.assertEqual([r["doc_id"] for r in result], ["a", "d"])
+
+    def test_expired_budget_stops_before_model_batch(self):
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        scorer = CrossEncoderScorer.__new__(CrossEncoderScorer)
+        scorer.torch = SimpleNamespace(inference_mode=nullcontext)
+        scorer.batch_size, scorer.deadline = 1, 0
+        with self.assertRaises(RerankingBudgetExceeded):
+            scorer._score_features([{}])
     def test_description_scores_reorder_candidates_and_preserve_input(self):
         records = [candidate("a", 1, "1"), candidate("b", 2, "9")]
         scorer = FakeScorer()

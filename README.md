@@ -1,12 +1,15 @@
 # VERA
 
-UniAgent 2026 submissions developed in order: Task 1 retrieval, then Task 2 solving.
+UniAgent 2026: Task 1 retrieval, followed by Task 2 administrative solving.
 
-- `task1-retrieval/`: official PyTerrier BM25 starting baseline and tests.
-- `task2-solving/`: reserved for the solving system.
-- `datasets/`: official retrieval spot-check inputs and qrels.
+- [Task 1 submission](task1-retrieval/README.md): self-contained Docker build and
+  integrated BM25 + description-based cross-encoder ranking.
+- [Task 1 development](development/task1/README.md): tests, evaluation, archived
+  experiments, and verification reports; outside the submission build context.
+- `datasets/`: official retrieval spot-check inputs and evaluation judgments.
+- `task2-solving/`: placeholder for subsequent work.
 
-Each task is submitted separately to TIRA from its own directory. Development and testing use Docker.
-See [Task 1 instructions](task1-retrieval/README.md).
-
-Current status: Task 1 has modular query handling, BM25 candidate preparation, semantic grouping, and description-based cross-encoder reranking. The optional reranking image passed 45 tests and three offline real-model pilots. See [reranking verification](task1-retrieval/RERANKING_RESULTS.md). Full-set benchmarking and final submission integration remain pending. All three original offline BM25 spot checks passed output-format validation. See [BM25 results](task1-retrieval/BASELINE_RESULTS.md) and the [modular pipeline plan](task1-retrieval/PIPELINE.md). TIRA submission dry run is pending.
+Task 1 uses local packaged models and runs offline. All 52 tests and all three
+official TIRA dry runs passed. See the [submission validation report](development/task1/reports/SUBMISSION_VALIDATION.md).
+Changes remain uncommitted because staging/sync approval was declined. No system
+has been uploaded to TIRA.
