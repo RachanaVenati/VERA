@@ -20,3 +20,8 @@ The workflow never runs on pushes or pull requests. Each successful manual run
 creates an actual submission. Keep tokens out of source files, command output,
 and screenshots. GitHub stores the token as a secret; it is not passed to the
 submission container. No GitHub packages or Docker Hub credentials are needed.
+
+The CLI wrapper gives Docker requests a 600-second inactivity timeout instead
+of the SDK default of 60 seconds, allowing large registry pushes to wait for
+progress updates. This does not change the retrieval system or its case budget.
+If a push still fails, inspect the error before starting a new workflow run.

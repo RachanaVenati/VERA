@@ -18,6 +18,7 @@ jobs:
       DOCKER_DEFAULT_PLATFORM: linux/amd64
       BUILDX_NO_DEFAULT_ATTESTATIONS: '1'
       PYTHONUNBUFFERED: '1'
+      VERA_DOCKER_TIMEOUT_SECONDS: '600'
     steps:
       - uses: actions/checkout@v4
         with:
