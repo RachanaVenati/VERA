@@ -1,0 +1,78 @@
+name: Compare Task 1 ranking policies
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task1-ranking-comparison
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset:
+          - retrieval-de-spot-check
+          - retrieval-en-spot-check
+          - retrieval-hessian-law-de-spot-check
+    env:
+      DATASET: ${{ matrix.dataset }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build image with local embedding and reranking models
+        run: |
+          docker build --platform linux/amd64 --provenance=false \
+            --build-arg INCLUDE_SEMANTIC_MODEL=1 -t vera-task1-comparison task1-retrieval
+
+      - name: Test ranking and field separation
+        run: |
+          for test in test_group_ranking.py test_semantic_pipeline.py test_ranking_comparison.py; do
+            docker run --rm --network none --platform linux/amd64 \
+              -e PYTHONPATH=/app:/workspace/development/task1/scripts \
+              -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:/workspace:ro" \
+              --entrypoint python3 vera-task1-comparison \
+              -m unittest discover -s /workspace/development/task1/tests -p "$test"
+          done
+
+      - name: Run shared inference without relevance judgments
+        run: |
+          mkdir -p inputs results/inference
+          cp "datasets/$DATASET/documents.jsonl.gz" "datasets/$DATASET/queries.jsonl" inputs/
+          docker run --rm --network none --platform linux/amd64 --cpus 4 --memory 6g \
+            -v "$PWD/inputs:/input:ro" -v "$PWD/results/inference:/output" \
+            vera-task1-comparison --dataset /input --output /output --semantic-mode audit
+
+      - name: Compare frozen ranking policies with public truths
+        run: |
+          docker run --rm --network none --platform linux/amd64 \
+            -e PYTHONPATH=/app:/workspace/development/task1/scripts \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            -v "$PWD:/workspace:ro" -v "$PWD/results:/results" \
+            --entrypoint python3 vera-task1-comparison \
+            /workspace/development/task1/scripts/compare_group_rankings.py \
+            --source /results/inference --truths "/workspace/datasets/$DATASET" \
+            --output /results/comparison
+          cat results/comparison/comparison.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain comparison reports and ranked runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ranking-comparison-${{ matrix.dataset }}
+          path: |
+            results/comparison/
+            results/inference/summary.json
+            results/inference/reranking-scores.jsonl.gz
+            results/inference/semantic-groups.jsonl.gz
+            results/inference/semantic-similarities.jsonl.gz
+          retention-days: 14

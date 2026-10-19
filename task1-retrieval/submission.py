@@ -16,6 +16,7 @@ from cross_encoder import CrossEncoderScorer, MODEL_ID, MODEL_REVISION, Rerankin
 from event_logging import EventTrace
 from query_fields import retrieval_text, reranking_text
 from reranking import rerank_candidates
+from group_ranking import order_candidates, STRATEGIES
 
 
 def merge_rankings(bm25_run, reranked):
@@ -115,8 +116,13 @@ class AuditedScorer:
               type=click.Path(file_okay=False, path_type=Path))
 @click.option("--semantic-threshold", default=0.95, type=click.FloatRange(min=0, max=1, min_open=True))
 @click.option("--semantic-review-floor", default=0.90, type=click.FloatRange(min=0, max=1, min_open=True))
+@click.option("--ranking-strategy", default="cross-encoder", type=click.Choice(STRATEGIES), show_default=True)
+@click.option("--mmr-lambda", default=0.8, type=click.FloatRange(min=0, max=1), show_default=True)
 def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
-         semantic_mode, semantic_model_path, semantic_threshold, semantic_review_floor):
+         semantic_mode, semantic_model_path, semantic_threshold, semantic_review_floor,
+         ranking_strategy, mmr_lambda):
+    if ranking_strategy != "cross-encoder" and (mode != "rerank" or semantic_mode != "audit"):
+        raise click.ClickException("Group ranking requires --mode rerank --semantic-mode audit.")
     if semantic_mode == "audit":
         if mode != "rerank":
             raise click.ClickException("Semantic auditing requires --mode rerank.")
@@ -151,14 +157,14 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
                 parents[qid] = trace.emit(qid, "observation", event, output={
                     "stage": "BM25", "retrieved_document_ids": list(rows.docno.astype(str)),
                     "rerank_candidate_ids": [r["doc_id"] for r in candidates if r["qid"] == qid]})
-            groups, semantic_summary = None, {"mode": "off"}
+            groups, semantic_summary, similarities = None, {"mode": "off"}, None
             if semantic_mode == "audit":
                 from semantic_audit import run_semantic_audit
                 from text_embeddings import DocumentEmbedder
                 embedder = DocumentEmbedder(str(semantic_model_path), batch_size)
                 embedder.trace, embedder.parents = trace, parents
                 embedder.records = candidates
-                groups, semantic_summary = run_semantic_audit(
+                groups, semantic_summary, similarities = run_semantic_audit(
                     candidates, embedder, output, trace, parents,
                     semantic_threshold, semantic_review_floor)
                 del embedder
@@ -167,6 +173,7 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
                 audited = AuditedScorer(CrossEncoderScorer(batch_size=batch_size), candidates, trace,
                                        parents, case_budget_seconds)
                 results = rerank_candidates(candidates, audited, groups)
+                results = order_candidates(results, groups, similarities, ranking_strategy, mmr_lambda)
                 case_seconds = dict(audited.case_seconds)
                 limited_queries = sorted(audited.limited_queries)
                 with gzip.open(output / "reranking-scores.jsonl.gz", "wt", encoding="utf-8") as stream:
@@ -174,6 +181,9 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
                         scores = {key: row[key] for key in (
                             "qid", "doc_id", "bm25_rank", "bm25_score", "rerank_rank", "rerank_score",
                             "chunk_count", "best_chunk_index", "score_source_doc_id")}
+                        scores.update({key: row[key] for key in ("cross_encoder_rank", "ranking_strategy")})
+                        if "selection_score" in row:
+                            scores["selection_score"] = row["selection_score"]
                         stream.write(json.dumps(scores, allow_nan=False) + "\n")
                         source = audited.records[(row["description"], row["text"])]
                         event = audited.score_events[(row["description"], row["text"])]
@@ -189,7 +199,9 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
                     "doc_id", "rerank_score", "best_chunk_index", "score_source_doc_id")}
                     for row in results if row["qid"] == qid and row["rerank_rank"] <= 10]
                 trace.emit(qid, "decision", last_observations[qid], output={
-                    "decision": "rank_documents", "answer": answer, "evidence": evidence})
+                    "decision": "rank_documents", "ranking_strategy": ranking_strategy,
+                    "mmr_lambda": mmr_lambda if ranking_strategy == "mmr" else None,
+                    "answer": answer, "evidence": evidence})
             for name in ("index-ir-metadata.yml", "retrieval-ir-metadata.yml"):
                 shutil.copy2(work / name, output / name)
         summary = {"mode": mode, "language": language, "candidate_k": candidate_k,
@@ -197,6 +209,7 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
                    "revision": MODEL_REVISION if mode == "rerank" else None,
                    "retrieval_field": "query", "reranking_field": "description",
                    "semantic_audit": semantic_summary,
+                   "ranking_strategy": ranking_strategy, "mmr_lambda": mmr_lambda if ranking_strategy == "mmr" else None,
                    "deduplication": "exact description/text score reuse; all document IDs preserved",
                    "final_score": "reciprocal rank; BM25 tail follows reranked prefix",
                    "queries": len(inputs), "results": len(final),

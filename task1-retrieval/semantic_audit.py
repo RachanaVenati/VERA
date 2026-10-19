@@ -11,7 +11,11 @@ from text_embeddings import MODEL_ID, MODEL_REVISION
 def run_semantic_audit(candidates, embedder, output, trace, parents,
                        threshold=0.95, review_floor=0.90):
     started = time.monotonic()
-    groups, pairs = audit_candidates(candidates, embedder, threshold, review_floor)
+    similarities = []
+    groups, pairs = audit_candidates(candidates, embedder, threshold, review_floor, similarities)
+    with gzip.open(output / "semantic-similarities.jsonl.gz", "wt", encoding="utf-8") as stream:
+        for pair in similarities:
+            stream.write(json.dumps(pair, allow_nan=False) + "\n")
     with gzip.open(output / "semantic-groups.jsonl.gz", "wt", encoding="utf-8") as stream:
         for group in groups:
             stream.write(json.dumps(group, ensure_ascii=False, allow_nan=False) + "\n")
@@ -30,4 +34,4 @@ def run_semantic_audit(candidates, embedder, output, trace, parents,
                     "groups": len(groups), "review_pairs": len(pairs),
                     "multi_member_groups": sum(len(g["members"]) > 1 for g in groups),
                     "seconds": time.monotonic() - started,
-                    "policy": "preserve all IDs; score each distinct description/text pair"}
+                    "policy": "preserve all IDs; score each distinct description/text pair"}, similarities

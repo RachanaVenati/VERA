@@ -8,6 +8,6 @@ ARG INCLUDE_SEMANTIC_MODEL=0
 RUN if [ "$INCLUDE_SEMANTIC_MODEL" = "1" ]; then python3 -c "from huggingface_hub import snapshot_download; snapshot_download('intfloat/multilingual-e5-small', revision='614241f622f53c4eeff9890bdc4f31cfecc418b3', local_dir='/models/multilingual-e5-small', allow_patterns=['*.json', '*.safetensors', '*.model', '*.txt', 'README.md'])"; elif [ "$INCLUDE_SEMANTIC_MODEL" != "0" ]; then exit 1; fi
 ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 COPY baseline.py candidates.py query_fields.py cross_encoder.py reranking.py event_logging.py submission.py /app/
-COPY semantic_audit.py semantic_duplicates.py semantic_review.py text_embeddings.py /app/
+COPY semantic_audit.py semantic_duplicates.py semantic_review.py text_embeddings.py group_ranking.py /app/
 COPY german-stopwords.txt german-stopwords.NOTICE /app/
 ENTRYPOINT ["python3", "/app/submission.py"]

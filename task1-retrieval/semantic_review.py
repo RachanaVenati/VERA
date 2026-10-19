@@ -16,7 +16,7 @@ import numpy as np
 from semantic_duplicates import _same_legal_record, group_candidates
 
 
-def audit_candidates(records, embedder, threshold=0.95, review_floor=0.90):
+def audit_candidates(records, embedder, threshold=0.95, review_floor=0.90, similarities=None):
     """Encode each distinct text once, return groups and reviewable pairs.
 
     Every above-floor pair is exported, including legally blocked pairs and
@@ -51,9 +51,12 @@ def audit_candidates(records, embedder, threshold=0.95, review_floor=0.90):
         split = "validation" if int(hashlib.sha256(str(qid).encode()).hexdigest(), 16) % 5 == 0 else "calibration"
         for left, right in combinations(candidates, 2):
             cosine = float(np.clip(lookup[left["text"]] @ lookup[right["text"]], -1, 1))
+            allowed = _same_legal_record(left, right)
+            if similarities is not None:
+                similarities.append({"qid": qid, "left_id": left["doc_id"], "right_id": right["doc_id"],
+                                     "cosine": cosine, "legal_identity_allowed": allowed})
             if cosine < review_floor:
                 continue
-            allowed = _same_legal_record(left, right)
             pairs.append({
                 "qid": qid, "left_id": left["doc_id"], "right_id": right["doc_id"],
                 "left_bm25_rank": left["bm25_rank"], "right_bm25_rank": right["bm25_rank"],

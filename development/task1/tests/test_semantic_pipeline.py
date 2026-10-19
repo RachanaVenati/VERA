@@ -125,6 +125,16 @@ class SemanticPipelineTest(unittest.TestCase):
             self.assertIn("Semantic model is missing", result.output)
             index.assert_not_called()
 
+    def test_group_ranking_requires_audit_before_indexing(self):
+        pipeline = load_pipeline()
+        with tempfile.TemporaryDirectory() as directory, patch.object(pipeline, "create_index") as index:
+            for strategy in ("group-winners", "mmr"):
+                result = CliRunner().invoke(pipeline.main, ["--dataset", directory,
+                    "--output", directory + "/out", "--ranking-strategy", strategy])
+                self.assertNotEqual(result.exit_code, 0)
+                self.assertIn("Group ranking requires", result.output)
+            index.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

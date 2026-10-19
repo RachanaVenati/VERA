@@ -37,6 +37,16 @@ Audit cost is additional to the reranking budget and needs separate runtime
 validation before submission. Label pairs and calibrate thresholds using
 `../development/task1/SEMANTIC_REVIEW.md` before implementing any removal policy.
 
+Group-aware ordering is an optional experiment after cross-encoder scoring:
+`--ranking-strategy group-winners` ranks the best-scoring member of each group
+first; `--ranking-strategy mmr --mmr-lambda 0.8` balances normalized relevance
+and redundancy. Both require `--semantic-mode audit`, preserve all IDs, and
+leave unscored documents in the BM25 tail. The default is `cross-encoder`.
+Audit mode also writes `semantic-similarities.jsonl.gz` for all candidate pairs.
+See `../development/task1/GROUP_RANKING.md` for the controlled comparison
+workflow; it evaluates five policies from one shared inference run per dataset
+without uploading software or automatically changing the submission policy.
+
 A 240-second reranking budget per query reserves time for the five-minute case
 limit. If it is reached, the completed prefix is reranked and remaining documents
 retain BM25 order. Model batches check the budget between calls; this is not a
