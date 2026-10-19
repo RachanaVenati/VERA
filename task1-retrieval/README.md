@@ -19,7 +19,23 @@ outbound network are needed at runtime. Models are downloaded during the build.
 
 Semantic similarity groups are not used to delete records: the development
 pilot grouped different Erasmus activities at cosine 0.9775. Those experimental
-utilities remain in `../development/task1/`.
+review and calibration commands remain in `../development/task1/`.
+
+Optional semantic auditing runs **after BM25 candidate selection and before
+description-based reranking**. Build with `--build-arg INCLUDE_SEMANTIC_MODEL=1`
+and run with `--semantic-mode audit`. The image then bundles the pinned
+multilingual E5-small model. The default is `--semantic-mode off`, with no
+embedding model download or semantic computation. BM25 always uses `query`;
+the cross-encoder always uses `original_query.description`; narrative is unused.
+
+Audit mode adds `semantic-groups.jsonl.gz` and `semantic-review-pairs.csv`, and
+logs embedding model calls in the event trace. Defaults are a provisional
+grouping threshold of 0.95 and review floor of 0.90, adjustable through
+`--semantic-threshold` and `--semantic-review-floor`. It preserves every ID and
+reranks every original candidate; distinct texts never share relevance scores.
+Audit cost is additional to the reranking budget and needs separate runtime
+validation before submission. Label pairs and calibrate thresholds using
+`../development/task1/SEMANTIC_REVIEW.md` before implementing any removal policy.
 
 A 240-second reranking budget per query reserves time for the five-minute case
 limit. If it is reached, the completed prefix is reranked and remaining documents

@@ -110,7 +110,20 @@ class AuditedScorer:
 @click.option("--mode", default="rerank", type=click.Choice(["rerank", "bm25"]), show_default=True)
 @click.option("--batch-size", default=16, type=click.IntRange(1), show_default=True)
 @click.option("--case-budget-seconds", default=240.0, type=click.FloatRange(min=10), show_default=True)
-def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds):
+@click.option("--semantic-mode", default="off", type=click.Choice(["off", "audit"]), show_default=True)
+@click.option("--semantic-model-path", default="/models/multilingual-e5-small", show_default=True,
+              type=click.Path(file_okay=False, path_type=Path))
+@click.option("--semantic-threshold", default=0.95, type=click.FloatRange(min=0, max=1, min_open=True))
+@click.option("--semantic-review-floor", default=0.90, type=click.FloatRange(min=0, max=1, min_open=True))
+def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
+         semantic_mode, semantic_model_path, semantic_threshold, semantic_review_floor):
+    if semantic_mode == "audit":
+        if mode != "rerank":
+            raise click.ClickException("Semantic auditing requires --mode rerank.")
+        if not semantic_model_path.is_dir():
+            raise click.ClickException("Semantic model is missing. Build with --build-arg INCLUDE_SEMANTIC_MODEL=1.")
+        if semantic_review_floor > semantic_threshold:
+            raise click.ClickException("Semantic review floor cannot exceed the grouping threshold.")
     if output.exists() and any(output.iterdir()):
         raise click.ClickException("Output directory must be empty.")
     output.mkdir(parents=True, exist_ok=True)
@@ -138,11 +151,22 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds):
                 parents[qid] = trace.emit(qid, "observation", event, output={
                     "stage": "BM25", "retrieved_document_ids": list(rows.docno.astype(str)),
                     "rerank_candidate_ids": [r["doc_id"] for r in candidates if r["qid"] == qid]})
+            groups, semantic_summary = None, {"mode": "off"}
+            if semantic_mode == "audit":
+                from semantic_audit import run_semantic_audit
+                from text_embeddings import DocumentEmbedder
+                embedder = DocumentEmbedder(str(semantic_model_path), batch_size)
+                embedder.trace, embedder.parents = trace, parents
+                embedder.records = candidates
+                groups, semantic_summary = run_semantic_audit(
+                    candidates, embedder, output, trace, parents,
+                    semantic_threshold, semantic_review_floor)
+                del embedder
             case_seconds, results, last_observations, limited_queries = {}, [], dict(parents), []
             if candidates:
                 audited = AuditedScorer(CrossEncoderScorer(batch_size=batch_size), candidates, trace,
                                        parents, case_budget_seconds)
-                results = rerank_candidates(candidates, audited)
+                results = rerank_candidates(candidates, audited, groups)
                 case_seconds = dict(audited.case_seconds)
                 limited_queries = sorted(audited.limited_queries)
                 with gzip.open(output / "reranking-scores.jsonl.gz", "wt", encoding="utf-8") as stream:
@@ -172,6 +196,7 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds):
                    "model": MODEL_ID if mode == "rerank" else "-",
                    "revision": MODEL_REVISION if mode == "rerank" else None,
                    "retrieval_field": "query", "reranking_field": "description",
+                   "semantic_audit": semantic_summary,
                    "deduplication": "exact description/text score reuse; all document IDs preserved",
                    "final_score": "reciprocal rank; BM25 tail follows reranked prefix",
                    "queries": len(inputs), "results": len(final),

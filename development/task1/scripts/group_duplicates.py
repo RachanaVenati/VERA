@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 
 from candidates import write_candidates
-from semantic_duplicates import group_candidates
+from semantic_review import audit_candidates, write_review
 from text_embeddings import DocumentEmbedder, MODEL_ID, MODEL_REVISION
 
 
@@ -17,20 +17,24 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--model-path", default="/models/multilingual-e5-small")
     parser.add_argument("--threshold", type=float, default=0.95)
+    parser.add_argument("--review-floor", type=float, default=0.90)
     parser.add_argument("--batch-size", type=int, default=16)
     args = parser.parse_args()
-    if not 0 < args.threshold <= 1:
-        parser.error("--threshold must be in (0, 1]")
+    if not 0 < args.review_floor <= args.threshold <= 1:
+        parser.error("Require 0 < --review-floor <= --threshold <= 1")
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("--output must be empty")
     with gzip.open(args.candidates, "rt", encoding="utf-8") as stream:
         candidates = [json.loads(line) for line in stream]
     started = time.monotonic()
-    groups = group_candidates(candidates, DocumentEmbedder(args.model_path, args.batch_size), args.threshold)
+    groups, pairs = audit_candidates(candidates, DocumentEmbedder(args.model_path, args.batch_size),
+                                    args.threshold, args.review_floor)
     args.output.mkdir(parents=True, exist_ok=True)
     write_candidates(groups, args.output / "duplicate-groups.jsonl.gz")
+    write_review(pairs, args.output / "review-pairs.csv")
     summary = {"model": MODEL_ID, "revision": MODEL_REVISION, "threshold": args.threshold,
                "candidates": len(candidates), "groups": len(groups),
+               "review_pairs": len(pairs), "review_floor": args.review_floor,
                "multi_member_groups": sum(len(g["members"]) > 1 for g in groups),
                "seconds": round(time.monotonic() - started, 3),
                "policy": "review groups; preserve all IDs; highest BM25 rank represents group",

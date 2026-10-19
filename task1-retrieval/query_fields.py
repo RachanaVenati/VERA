@@ -1,6 +1,6 @@
 """Keep the inputs for lexical retrieval and semantic reranking separate.
 
-BM25 uses the short `query`. A future cross-encoder uses `description`.
+BM25 uses the short `query`. The cross-encoder uses `description`.
 Descriptions are read from original_query, matching the official input schema.
 Neither stage uses the narrative or silently substitutes another field.
 """

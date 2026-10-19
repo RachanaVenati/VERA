@@ -10,6 +10,9 @@ metadata; the Docker build context remains `task1-retrieval`.
 2. On GitHub, open **Settings → Secrets and variables → Actions → New repository
    secret**. Name it `TIRA_TOKEN` and paste your TIRA token as the value.
 3. Open **Actions → Submit Task 1 to TIRA → Run workflow**. Select `main`.
+   Leave `semantic_mode` at `off` for the established pipeline, or choose
+   `audit` to detect potential semantic duplicates before reranking without
+   removing IDs. Audit mode adds model/runtime cost and review artifacts.
 4. Wait for **Build, spot-check, and upload Task 1** to finish. Its final output
    gives the generated software name in TIRA. A failed job does not confirm a
    completed submission; inspect its logs before retrying.

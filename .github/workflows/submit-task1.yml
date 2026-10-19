@@ -2,6 +2,14 @@ name: Submit Task 1 to TIRA
 
 on:
   workflow_dispatch:
+    inputs:
+      semantic_mode:
+        description: 'Semantic detection (audit preserves every document)'
+        type: choice
+        options:
+          - 'off'
+          - 'audit'
+        default: 'off'
 
 permissions:
   contents: read
@@ -19,6 +27,7 @@ jobs:
       BUILDX_NO_DEFAULT_ATTESTATIONS: '1'
       PYTHONUNBUFFERED: '1'
       VERA_DOCKER_TIMEOUT_SECONDS: '600'
+      SEMANTIC_MODE: ${{ inputs.semantic_mode }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,14 +59,16 @@ jobs:
 
       - name: Build, spot-check, and upload Task 1
         run: |
+          include_semantic=0
+          if [ "$SEMANTIC_MODE" = "audit" ]; then include_semantic=1; fi
           python development/task1/scripts/tira_cli_local.py code-submission \
             --path task1-retrieval \
             --task uniagent-2026 \
             --tira-vm-id vera \
             --dataset retrieval-de-spot-check-20260816-training \
             --platform linux/amd64 \
-            --build-args='--output type=docker --provenance=false' \
-            --command 'python3 /app/submission.py --dataset $inputDataset --output $outputDir'
+            --build-args="--output type=docker --provenance=false --build-arg INCLUDE_SEMANTIC_MODEL=$include_semantic" \
+            --command "python3 /app/submission.py --dataset \$inputDataset --output \$outputDir --semantic-mode $SEMANTIC_MODE"
 
       - name: Record completion
         run: |
