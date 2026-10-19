@@ -154,7 +154,8 @@ def analyze_run_trace(path: Path) -> tuple[str, int, int]:
     return model, valid, invalid
 
 
-def run_tira_evaluate(predictions: Path, truths: Path, task: str) -> dict[str, Any]:
+def run_tira_evaluate(predictions: Path, truths: Path, task: str,
+                      allow_small_retrieval_subset: bool = False) -> dict[str, Any]:
     """Compute `task`'s measure(s) for `predictions` against `truths`.
 
     Calls `tira.evaluators.evaluate()` directly with the hardcoded
@@ -164,8 +165,16 @@ def run_tira_evaluate(predictions: Path, truths: Path, task: str) -> dict[str, A
     no network access and works for any dataset of the given `task`,
     matching what that task's baseline(s) are evaluated with on TIRA.
     """
+    config = dict(TASK_CONFIGS[task])
+    if allow_small_retrieval_subset:
+        if task != "retrieval":
+            raise ValueError("Small-subset configuration is only supported for retrieval.")
+        # Keep strict defaults for full runs; only explicit development splits
+        # lower size limits. Parsing and metric arithmetic are unchanged.
+        for key in ("format_configuration", "truth_format_configuration"):
+            config[key] = {**config.get(key, {}), "minimum_queries": 1, "minimum_lines": 1}
     try:
-        return tira_evaluate(predictions, truths, TASK_CONFIGS[task])
+        return tira_evaluate(predictions, truths, config)
     except Exception as error:
         raise click.ClickException(f"tira evaluation failed: {error}") from error
 

@@ -70,3 +70,17 @@ Use the submission container's dependencies for official evaluation. Old audit
 runs without `semantic-similarities.jsonl.gz` must be regenerated. An earlier
 time-limited run can compare policies over its scored prefix, but no policy
 can promote unscored candidates into that prefix.
+
+## Recover an evaluation failure
+
+If inference completed but evaluation failed, enter the previous workflow run
+ID in the optional `source_run_id` field when starting a new comparison. The
+workflow restores scores, groups, similarities and the original run from its
+artifacts and skips inference. Artifacts from the first comparison run recover
+the source ranking from `comparison/cross-encoder/run.txt.gz`; later artifacts
+include it directly under `inference/`.
+
+Intentional calibration/validation subsets explicitly permit one query and one
+judgment in TIRA's format configuration. Full-collection evaluation keeps the
+default size checks, and both use the same official nDCG calculation. This does
+not make small validation splits statistically reliable.

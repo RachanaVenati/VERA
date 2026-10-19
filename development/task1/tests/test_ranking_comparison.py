@@ -23,7 +23,7 @@ class RankingComparisonTest(unittest.TestCase):
         pipeline = load_pipeline()
         evaluator = ModuleType("evaluate_submission")
         # Test orchestration, not metric arithmetic; the workflow uses TIRA's evaluator.
-        evaluator.run_tira_evaluate = lambda *args: {"nDCG@10": 0.5}
+        evaluator.run_tira_evaluate = lambda *args, **kwargs: {"nDCG@10": 0.5}
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, truths, output = root / "source", root / "truths", root / "comparison"

@@ -109,7 +109,8 @@ def compare(source, truths, output):
             target = directory / split
             target.mkdir()
             write_run(subset, target / "run.txt.gz")
-            report[split] = run_tira_evaluate(target, qrels_dir, "retrieval") if qids else None
+            report[split] = run_tira_evaluate(target, qrels_dir, "retrieval",
+                                            allow_small_retrieval_subset=True) if qids else None
         reports[name] = report
     base = reports["cross-encoder"]["all"]["nDCG@10"]
     for report in reports.values():

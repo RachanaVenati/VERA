@@ -2,9 +2,15 @@ name: Compare Task 1 ranking policies
 
 on:
   workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Optional previous run ID: reuse saved inference and evaluate only'
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: task1-ranking-comparison
@@ -24,6 +30,7 @@ jobs:
     env:
       DATASET: ${{ matrix.dataset }}
       PYTHONUNBUFFERED: '1'
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +43,7 @@ jobs:
 
       - name: Test ranking and field separation
         run: |
-          for test in test_group_ranking.py test_semantic_pipeline.py test_ranking_comparison.py; do
+          for test in test_group_ranking.py test_semantic_pipeline.py test_ranking_comparison.py test_small_subset_evaluation.py; do
             docker run --rm --network none --platform linux/amd64 \
               -e PYTHONPATH=/app:/workspace/development/task1/scripts \
               -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:/workspace:ro" \
@@ -45,12 +52,32 @@ jobs:
           done
 
       - name: Run shared inference without relevance judgments
+        if: inputs.source_run_id == ''
         run: |
           mkdir -p inputs results/inference
           cp "datasets/$DATASET/documents.jsonl.gz" "datasets/$DATASET/queries.jsonl" inputs/
           docker run --rm --network none --platform linux/amd64 --cpus 4 --memory 6g \
             -v "$PWD/inputs:/input:ro" -v "$PWD/results/inference:/output" \
             vera-task1-comparison --dataset /input --output /output --semantic-mode audit
+
+      - name: Restore saved inference artifacts
+        if: inputs.source_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ranking-comparison-${{ matrix.dataset }}
+          path: recovered
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Prepare recovered inference without rerunning models
+        if: inputs.source_run_id != ''
+        run: |
+          mkdir -p results/inference
+          cp recovered/inference/* results/inference/
+          if [ ! -f results/inference/run.txt.gz ]; then
+            cp recovered/comparison/cross-encoder/run.txt.gz results/inference/run.txt.gz
+          fi
+          echo "Reusing model scores from workflow run $SOURCE_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Compare frozen ranking policies with public truths
         run: |
@@ -72,6 +99,7 @@ jobs:
           path: |
             results/comparison/
             results/inference/summary.json
+            results/inference/run.txt.gz
             results/inference/reranking-scores.jsonl.gz
             results/inference/semantic-groups.jsonl.gz
             results/inference/semantic-similarities.jsonl.gz
