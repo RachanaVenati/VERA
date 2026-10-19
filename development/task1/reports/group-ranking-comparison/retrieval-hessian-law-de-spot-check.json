@@ -1,0 +1,145 @@
+{
+  "policies": {
+    "cross-encoder": {
+      "all": {
+        "nDCG@10": 0.5652946540265149
+      },
+      "Recall@1000": 0.9333333333333333,
+      "reordering_seconds": 0.01761376499999301,
+      "strategy": "cross-encoder",
+      "mmr_lambda": null,
+      "calibration": {
+        "nDCG@10": 0.5268069274481743
+      },
+      "validation": {
+        "nDCG@10": 0.8154648767857288
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "group-winners": {
+      "all": {
+        "nDCG@10": 0.5652946540265149
+      },
+      "Recall@1000": 0.9333333333333333,
+      "reordering_seconds": 0.01641762399999891,
+      "strategy": "group-winners",
+      "mmr_lambda": null,
+      "calibration": {
+        "nDCG@10": 0.5268069274481743
+      },
+      "validation": {
+        "nDCG@10": 0.8154648767857288
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "mmr-0.7": {
+      "all": {
+        "nDCG@10": 0.5652946540265149
+      },
+      "Recall@1000": 0.9333333333333333,
+      "reordering_seconds": 0.15022216900000274,
+      "strategy": "mmr",
+      "mmr_lambda": 0.7,
+      "calibration": {
+        "nDCG@10": 0.5268069274481743
+      },
+      "validation": {
+        "nDCG@10": 0.8154648767857288
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "mmr-0.8": {
+      "all": {
+        "nDCG@10": 0.5652946540265149
+      },
+      "Recall@1000": 0.9333333333333333,
+      "reordering_seconds": 0.14768188899999757,
+      "strategy": "mmr",
+      "mmr_lambda": 0.8,
+      "calibration": {
+        "nDCG@10": 0.5268069274481743
+      },
+      "validation": {
+        "nDCG@10": 0.8154648767857288
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "mmr-0.9": {
+      "all": {
+        "nDCG@10": 0.5652946540265149
+      },
+      "Recall@1000": 0.9333333333333333,
+      "reordering_seconds": 0.21823771799999747,
+      "strategy": "mmr",
+      "mmr_lambda": 0.9,
+      "calibration": {
+        "nDCG@10": 0.5268069274481743
+      },
+      "validation": {
+        "nDCG@10": 0.8154648767857288
+      },
+      "delta_nDCG@10": 0.0
+    }
+  },
+  "selected_on_calibration": "cross-encoder",
+  "selected_validation": {
+    "nDCG@10": 0.8154648767857288
+  },
+  "source_summary": {
+    "mode": "rerank",
+    "language": "de",
+    "candidate_k": 50,
+    "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+    "revision": "1427fd652930e4ba29e8149678df786c240d8825",
+    "retrieval_field": "query",
+    "reranking_field": "description",
+    "semantic_audit": {
+      "mode": "audit",
+      "model": "intfloat/multilingual-e5-small",
+      "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "threshold": 0.95,
+      "review_floor": 0.9,
+      "groups": 750,
+      "review_pairs": 16705,
+      "multi_member_groups": 0,
+      "seconds": 541.5115214059999,
+      "policy": "preserve all IDs; score each distinct description/text pair"
+    },
+    "ranking_strategy": "cross-encoder",
+    "mmr_lambda": null,
+    "deduplication": "exact description/text score reuse; all document IDs preserved",
+    "final_score": "reciprocal rank; BM25 tail follows reranked prefix",
+    "queries": 15,
+    "results": 10764,
+    "case_budget_seconds": 240.0,
+    "budget_limited_queries": [],
+    "case_reranking_seconds": {
+      "1": 33.41820100499967,
+      "10": 77.85763952800028,
+      "11": 71.97779058800029,
+      "12": 24.967320457000255,
+      "13": 131.87083254599975,
+      "14": 99.6376181319988,
+      "15": 32.5415872880003,
+      "2": 32.001716696998756,
+      "3": 52.10143225900015,
+      "4": 33.1118794099998,
+      "5": 36.5733988479999,
+      "6": 6.345234006999817,
+      "7": 134.71327315500048,
+      "8": 16.933031692999748,
+      "9": 12.45695880299877
+    },
+    "seconds": 1354.901651773
+  },
+  "split_query_counts": {
+    "calibration": 13,
+    "validation": 2
+  },
+  "protocol": "One inference run; fixed scores and candidate IDs; no automatic deployment. Sample splits are small.",
+  "provenance": {
+    "inference_run_id": 39327426915,
+    "evaluation_run_id": 39332478846,
+    "evaluation_fix_commit": "817ace1"
+  }
+}

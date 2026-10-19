@@ -1,0 +1,155 @@
+{
+  "policies": {
+    "cross-encoder": {
+      "all": {
+        "nDCG@10": 0.8351654270781114
+      },
+      "Recall@1000": 1.0,
+      "reordering_seconds": 0.024507147000008445,
+      "strategy": "cross-encoder",
+      "mmr_lambda": null,
+      "calibration": {
+        "nDCG@10": 0.8455851790817127
+      },
+      "validation": {
+        "nDCG@10": 0.7153382790366966
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "group-winners": {
+      "all": {
+        "nDCG@10": 0.8047226677700375
+      },
+      "Recall@1000": 1.0,
+      "reordering_seconds": 0.11287859000003664,
+      "strategy": "group-winners",
+      "mmr_lambda": null,
+      "calibration": {
+        "nDCG@10": 0.815733022049692
+      },
+      "validation": {
+        "nDCG@10": 0.6781035935540111
+      },
+      "delta_nDCG@10": -0.03044275930807383
+    },
+    "mmr-0.7": {
+      "all": {
+        "nDCG@10": 0.8351654270781114
+      },
+      "Recall@1000": 1.0,
+      "reordering_seconds": 0.19521342500001992,
+      "strategy": "mmr",
+      "mmr_lambda": 0.7,
+      "calibration": {
+        "nDCG@10": 0.8455851790817127
+      },
+      "validation": {
+        "nDCG@10": 0.7153382790366966
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "mmr-0.8": {
+      "all": {
+        "nDCG@10": 0.8351654270781114
+      },
+      "Recall@1000": 1.0,
+      "reordering_seconds": 0.19732245199998033,
+      "strategy": "mmr",
+      "mmr_lambda": 0.8,
+      "calibration": {
+        "nDCG@10": 0.8455851790817127
+      },
+      "validation": {
+        "nDCG@10": 0.7153382790366966
+      },
+      "delta_nDCG@10": 0.0
+    },
+    "mmr-0.9": {
+      "all": {
+        "nDCG@10": 0.8351654270781114
+      },
+      "Recall@1000": 1.0,
+      "reordering_seconds": 0.19690280999998322,
+      "strategy": "mmr",
+      "mmr_lambda": 0.9,
+      "calibration": {
+        "nDCG@10": 0.8455851790817127
+      },
+      "validation": {
+        "nDCG@10": 0.7153382790366966
+      },
+      "delta_nDCG@10": 0.0
+    }
+  },
+  "selected_on_calibration": "cross-encoder",
+  "selected_validation": {
+    "nDCG@10": 0.7153382790366966
+  },
+  "source_summary": {
+    "mode": "rerank",
+    "language": "en",
+    "candidate_k": 50,
+    "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+    "revision": "1427fd652930e4ba29e8149678df786c240d8825",
+    "retrieval_field": "query",
+    "reranking_field": "description",
+    "semantic_audit": {
+      "mode": "audit",
+      "model": "intfloat/multilingual-e5-small",
+      "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "threshold": 0.95,
+      "review_floor": 0.9,
+      "groups": 818,
+      "review_pairs": 12837,
+      "multi_member_groups": 209,
+      "seconds": 273.0753357269999,
+      "policy": "preserve all IDs; score each distinct description/text pair"
+    },
+    "ranking_strategy": "cross-encoder",
+    "mmr_lambda": null,
+    "deduplication": "exact description/text score reuse; all document IDs preserved",
+    "final_score": "reciprocal rank; BM25 tail follows reranked prefix",
+    "queries": 25,
+    "results": 25000,
+    "case_budget_seconds": 240.0,
+    "budget_limited_queries": [],
+    "case_reranking_seconds": {
+      "10": 28.33979455400015,
+      "16": 26.734628554000096,
+      "17": 31.866198997999618,
+      "18": 25.702344044999904,
+      "19": 23.90228388000037,
+      "20": 24.86384675100055,
+      "26": 24.951351767999995,
+      "27": 21.311035020999384,
+      "28": 23.42445104699982,
+      "29": 14.310445544999993,
+      "30": 37.37029540100002,
+      "41": 8.036329443,
+      "42": 31.64771894899968,
+      "43": 27.220645656000443,
+      "44": 14.9530724010001,
+      "45": 18.486288295999884,
+      "46": 30.44243556699996,
+      "47": 31.242454291000286,
+      "48": 23.05336529400006,
+      "49": 19.618895176000137,
+      "50": 27.900406706000354,
+      "6": 30.934025266000845,
+      "7": 31.61143016699998,
+      "8": 17.313085017000276,
+      "9": 29.979747987999417
+    },
+    "seconds": 929.3403354559999
+  },
+  "split_query_counts": {
+    "calibration": 23,
+    "validation": 2
+  },
+  "protocol": "One inference run; fixed scores and candidate IDs; no automatic deployment. Sample splits are small.",
+  "provenance": {
+    "inference_run_id": 39327426915,
+    "evaluation_run_id": 39332478846,
+    "evaluation_fix_commit": "817ace1"
+  }
+}
