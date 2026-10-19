@@ -34,6 +34,7 @@ alongside its task measure(s).
 """
 import gzip
 import json
+import math
 from pathlib import Path
 from typing import Any, Optional
 
@@ -154,6 +155,30 @@ def analyze_run_trace(path: Path) -> tuple[str, int, int]:
     return model, valid, invalid
 
 
+def _evaluate_small_retrieval(predictions: Path, truths: Path) -> dict[str, Any]:
+    """Use TIRA's parsers/metric engine without full-dataset size assumptions."""
+    from tira.check_format import RunFormat, QrelFormat
+    from tira.evaluators import TrecToolsEvaluator
+
+    for directory, basename in ((predictions, "run.txt"), (truths, "qrels.txt")):
+        if sum((directory / name).is_file() for name in (basename, basename + ".gz")) != 1:
+            raise ValueError(f"Expected exactly one {basename} or {basename}.gz.")
+    run = list(RunFormat().yield_next_entry(predictions))
+    qrels = QrelFormat().all_lines(truths)
+    for rows in (run, qrels):
+        if not rows or any(not isinstance(row, dict) for row in rows):
+            raise ValueError("Empty or malformed retrieval subset.")
+        identifiers = [(row["qid"], row["docno"]) for row in rows]
+        if len(set(identifiers)) != len(identifiers):
+            raise ValueError("Duplicate query/document IDs in retrieval subset.")
+    if any(row["rank"] < 1 or not math.isfinite(row["score"]) for row in run):
+        raise ValueError("Invalid rank or non-finite score in retrieval subset.")
+    # This is the exact metric method used by TIRA's normal evaluator. Only
+    # check_format's hard-coded minimum query/line counts are bypassed.
+    evaluator = TrecToolsEvaluator("run.txt", None, "qrels.txt", None, ["nDCG@10"])
+    return evaluator._eval(run, qrels)
+
+
 def run_tira_evaluate(predictions: Path, truths: Path, task: str,
                       allow_small_retrieval_subset: bool = False) -> dict[str, Any]:
     """Compute `task`'s measure(s) for `predictions` against `truths`.
@@ -165,16 +190,12 @@ def run_tira_evaluate(predictions: Path, truths: Path, task: str,
     no network access and works for any dataset of the given `task`,
     matching what that task's baseline(s) are evaluated with on TIRA.
     """
-    config = dict(TASK_CONFIGS[task])
-    if allow_small_retrieval_subset:
-        if task != "retrieval":
-            raise ValueError("Small-subset configuration is only supported for retrieval.")
-        # Keep strict defaults for full runs; only explicit development splits
-        # lower size limits. Parsing and metric arithmetic are unchanged.
-        for key in ("format_configuration", "truth_format_configuration"):
-            config[key] = {**config.get(key, {}), "minimum_queries": 1, "minimum_lines": 1}
     try:
-        return tira_evaluate(predictions, truths, config)
+        if allow_small_retrieval_subset:
+            if task != "retrieval":
+                raise ValueError("Small subsets are only supported for retrieval.")
+            return _evaluate_small_retrieval(predictions, truths)
+        return tira_evaluate(predictions, truths, TASK_CONFIGS[task])
     except Exception as error:
         raise click.ClickException(f"tira evaluation failed: {error}") from error
 

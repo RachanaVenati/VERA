@@ -80,7 +80,8 @@ artifacts and skips inference. Artifacts from the first comparison run recover
 the source ranking from `comparison/cross-encoder/run.txt.gz`; later artifacts
 include it directly under `inference/`.
 
-Intentional calibration/validation subsets explicitly permit one query and one
-judgment in TIRA's format configuration. Full-collection evaluation keeps the
-default size checks, and both use the same official nDCG calculation. This does
-not make small validation splits statistically reliable.
+Intentional calibration/validation subsets use TIRA's run/qrel parsers and
+the same `TrecToolsEvaluator._eval` metric method, with explicit nonempty,
+duplicate-ID and score/rank validation. This bypasses only the format wrapper's
+hard-coded minimum query/line counts. Full-collection evaluation keeps the
+default size checks. Small validation splits remain statistically limited.

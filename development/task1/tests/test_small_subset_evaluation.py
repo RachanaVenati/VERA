@@ -39,6 +39,19 @@ class SmallSubsetEvaluationTest(unittest.TestCase):
             with self.assertRaises(click.ClickException):
                 run_tira_evaluate(predictions, truths, "retrieval", allow_small_retrieval_subset=True)
 
+    def test_duplicate_documents_still_fail(self):
+        from evaluate_submission import run_tira_evaluate
+        import click
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            predictions, truths = root / "predictions", root / "truths"
+            predictions.mkdir()
+            truths.mkdir()
+            (predictions / "run.txt").write_text("q Q0 relevant 1 1.0 test\nq Q0 relevant 2 0.5 test\n")
+            (truths / "qrels.txt").write_text("q 0 relevant 1\n")
+            with self.assertRaises(click.ClickException):
+                run_tira_evaluate(predictions, truths, "retrieval", allow_small_retrieval_subset=True)
+
 
 if __name__ == "__main__":
     unittest.main()
