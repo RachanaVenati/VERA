@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dataset:
-        description: 'Collection to compare at top 50 and top 100'
+        description: 'Collection to compare at top 100 and top 200'
         type: choice
         options:
           - retrieval-hessian-law-de-spot-check
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        candidate_k: [50, 100]
+        candidate_k: [100, 200]
     env:
       DATASET: ${{ inputs.dataset }}
       CANDIDATE_K: ${{ matrix.candidate_k }}
@@ -39,7 +39,7 @@ jobs:
         run: docker build --platform linux/amd64 --provenance=false -t vera-pool-test task1-retrieval
       - name: Test candidate coverage and field separation
         run: |
-          for test in test_candidate_pool.py test_semantic_pipeline.py test_small_subset_evaluation.py; do
+          for test in test_candidate_pool.py test_reranking_fallback.py test_semantic_pipeline.py test_small_subset_evaluation.py; do
             docker run --rm --network none -e PYTHONPATH=/app:/workspace/development/task1/scripts \
               -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:/workspace:ro" --entrypoint python3 \
               vera-pool-test -m unittest discover -s /workspace/development/task1/tests -p "$test"
@@ -84,7 +84,7 @@ jobs:
           from pathlib import Path
           reports = [json.loads(p.read_text()) for p in Path('comparisons').glob('*/evaluation.json')]
           reports.sort(key=lambda r: r['candidate_k'])
-          assert [r['candidate_k'] for r in reports] == [50, 100]
+          assert [r['candidate_k'] for r in reports] == [100, 200]
           assert reports[0]['dataset'] == reports[1]['dataset']
           for report in reports:
               assert report['source_summary']['semantic_audit']['mode'] == 'off'
