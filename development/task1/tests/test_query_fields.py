@@ -28,13 +28,12 @@ class QueryFieldsTest(unittest.TestCase):
             run = retrieve(dataset, create_index(dataset, "en"), "en")
             self.assertEqual(set(run.docno), {"travel-doc"})
 
-    def test_description_outside_official_metadata_is_rejected(self):
+    def test_description_outside_official_metadata_uses_query_fallback(self):
         with persisted_dataset(
             [{"qid": "1", "query": "travel", "description": "expense rules"}],
             [{"doc_id": "1", "text": "travel"}],
         ) as dataset:
-            with self.assertRaisesRegex(ValueError, "description field"):
-                reranking_text(next(dataset.queries_iter()))
+            self.assertEqual(reranking_text(next(dataset.queries_iter())), "travel")
 
     def test_missing_description_does_not_break_bm25(self):
         with persisted_dataset(
@@ -43,8 +42,7 @@ class QueryFieldsTest(unittest.TestCase):
         ) as dataset:
             query = next(dataset.queries_iter())
             self.assertEqual(retrieval_text(query), "travel")
-            with self.assertRaisesRegex(ValueError, "description field"):
-                reranking_text(query)
+            self.assertEqual(reranking_text(query), "travel")
 
     def test_missing_query_is_not_replaced_by_description(self):
         from types import SimpleNamespace

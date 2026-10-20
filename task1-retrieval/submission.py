@@ -14,7 +14,7 @@ from baseline import create_index, detect_query_language, retrieve
 from candidates import prepare_candidates
 from cross_encoder import CrossEncoderScorer, MODEL_ID, MODEL_REVISION, RerankingBudgetExceeded
 from event_logging import EventTrace
-from query_fields import retrieval_text, reranking_text
+from query_fields import retrieval_text, reranking_text, reranking_field
 from reranking import rerank_candidates
 from group_ranking import order_candidates, STRATEGIES
 
@@ -139,10 +139,14 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
         data = ir_datasets.load(str(dataset))
         language = detect_query_language(data)
         inputs = {}
+        reranking_fields = {}
         for query in data.queries_iter():
             description = reranking_text(query) if mode == "rerank" else None
+            if mode == "rerank":
+                reranking_fields[str(query.query_id)] = reranking_field(query)
             inputs[str(query.query_id)] = trace.emit(query.query_id, "input", inputs={
-                "query": retrieval_text(query), "description": description, "language": language})
+                "query": retrieval_text(query), "description": description, "language": language,
+                "reranking_field": reranking_fields.get(str(query.query_id))})
         with tempfile.TemporaryDirectory(prefix="vera-") as temporary:
             work = Path(temporary)
             index = create_index(data, language, work, index_directory=work / "index")
@@ -207,7 +211,11 @@ def main(dataset, output, candidate_k, mode, batch_size, case_budget_seconds,
         summary = {"mode": mode, "language": language, "candidate_k": candidate_k,
                    "model": MODEL_ID if mode == "rerank" else "-",
                    "revision": MODEL_REVISION if mode == "rerank" else None,
-                   "retrieval_field": "query", "reranking_field": "description",
+                   "retrieval_field": "query", "reranking_field": (next(iter(set(reranking_fields.values())))
+                                       if len(set(reranking_fields.values())) == 1
+                                       else "mixed" if reranking_fields else None),
+                   "reranking_policy": "nonempty description, otherwise query",
+                   "reranking_fields_by_query": reranking_fields,
                    "semantic_audit": semantic_summary,
                    "ranking_strategy": ranking_strategy, "mmr_lambda": mmr_lambda if ranking_strategy == "mmr" else None,
                    "deduplication": "exact description/text score reuse; all document IDs preserved",

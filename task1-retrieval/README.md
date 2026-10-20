@@ -8,7 +8,7 @@ outbound network are needed at runtime. Models are downloaded during the build.
 
 1. Build a language-specific BM25 index of the supplied documents.
 2. Retrieve up to 1,000 documents per query using only the short `query` field.
-3. Rerank up to 50 candidates using `original_query.description` and a multilingual
+3. Rerank up to 50 candidates using nonempty `original_query.description` (otherwise `query`) and a multilingual
    cross-encoder. Narrative and relevance judgments are not used.
 4. Score long documents in overlapping chunks: 512 total tokens per pair,
    64 document tokens of overlap, maximum chunk logit as the document score.
@@ -26,7 +26,8 @@ description-based reranking**. Build with `--build-arg INCLUDE_SEMANTIC_MODEL=1`
 and run with `--semantic-mode audit`. The image then bundles the pinned
 multilingual E5-small model. The default is `--semantic-mode off`, with no
 embedding model download or semantic computation. BM25 always uses `query`;
-the cross-encoder always uses `original_query.description`; narrative is unused.
+the cross-encoder uses nonempty `original_query.description`, falling back to
+`query` when absent or blank; narrative is unused.
 
 Audit mode adds `semantic-groups.jsonl.gz` and `semantic-review-pairs.csv`, and
 logs embedding model calls in the event trace. Defaults are a provisional
@@ -53,7 +54,7 @@ retain BM25 order. Model batches check the budget between calls; this is not a
 hard interruption of native inference. Budget-limited queries are reported in
 `summary.json` and the event trace. Genuine inference errors fail the execution.
 
-Missing descriptions in reranking mode fail explicitly. Use `--mode bm25` only
+Missing or blank descriptions fall back to the short query for reranking. Use `--mode bm25` only
 when intentionally running the lexical comparison system. Defaults can be changed
 with `--candidate-k`, `--batch-size`, and `--case-budget-seconds`.
 

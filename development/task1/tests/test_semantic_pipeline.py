@@ -116,6 +116,51 @@ class SemanticPipelineTest(unittest.TestCase):
         self.assertEqual(calls, [(query.original_query["description"], "600"),
                                  (query.original_query["description"], "700")])
 
+    def test_missing_or_blank_description_reaches_cross_encoder_as_query(self):
+        pipeline = load_pipeline()
+        queries = [SimpleNamespace(query_id=str(i), query="travel", original_query=metadata)
+                   for i, metadata in enumerate([
+                       {}, {"description": None}, {"description": "  "},
+                       {"description": " expense rules "},
+                   ])]
+        data = SimpleNamespace(queries_iter=lambda: iter(queries), docs_iter=lambda: iter([
+            SimpleNamespace(doc_id="one", default_text=lambda: "travel reimbursement")]))
+        calls = []
+
+        def index(data, language, output, **kwargs):
+            for name in ("index-ir-metadata.yml", "retrieval-ir-metadata.yml"):
+                (output / name).write_text("{}")
+            return SimpleNamespace(close=lambda: None)
+
+        def retrieve(data, *args):
+            self.assertEqual([retrieval_text(q) for q in data.queries_iter()], ["travel"] * 4)
+            return pd.DataFrame([[q.query_id, "one", 0, 10] for q in queries],
+                                columns=["qid", "docno", "rank", "score"])
+
+        class Scorer:
+            def __init__(self, **kwargs):
+                pass
+
+            def score(self, description, text):
+                calls.append(description)
+                return {"score": 1.0, "chunk_count": 1, "best_chunk_index": 0}
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(pipeline.ir_datasets, "load", return_value=data), \
+                    patch.object(pipeline, "create_index", side_effect=index), \
+                    patch.object(pipeline, "retrieve", side_effect=retrieve), \
+                    patch.object(pipeline, "CrossEncoderScorer", Scorer):
+                result = CliRunner().invoke(pipeline.main, ["--dataset", str(root), "--output", str(root / "out")])
+            self.assertEqual(result.exit_code, 0, result.output + repr(result.exception))
+            # Identical effective query/document pairs share a score across questions.
+            self.assertEqual(calls, ["travel", "expense rules"])
+            summary = json.loads((root / "out/summary.json").read_text())
+            self.assertEqual(summary["reranking_fields_by_query"],
+                             {"0": "query", "1": "query", "2": "query", "3": "description"})
+            with gzip.open(root / "out/run.txt.gz", "rt") as stream:
+                self.assertEqual(len(list(stream)), 4)
+
     def test_missing_audit_model_fails_before_indexing(self):
         pipeline = load_pipeline()
         with tempfile.TemporaryDirectory() as directory, patch.object(pipeline, "create_index") as index:

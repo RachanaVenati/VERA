@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from query_fields import retrieval_text
+from query_fields import retrieval_text, reranking_text, reranking_field
 
 
 def select_candidates(run: pd.DataFrame, top_k: int) -> pd.DataFrame:
@@ -54,8 +54,8 @@ def prepare_candidates(dataset, run: pd.DataFrame, top_k: int = 50,
                        source_directory: Path | None = None) -> list[dict]:
     """Attach original IDs/text and separate query/description to selected hits.
 
-Missing descriptions remain null for BM25-only inputs. The reranking stage
-must validate them when enabled. Missing candidate documents fail explicitly.
+The description key contains the effective reranking text: a nonempty original
+description, otherwise the query. Missing candidate documents fail explicitly.
 Metadata is available when a local source documents JSONL file is supplied;
 otherwise it is empty, since the TIRA document loader exposes only ID and text.
 """
@@ -80,12 +80,11 @@ otherwise it is empty, since the TIRA document loader exposes only ID and text.
         if row.qid not in queries:
             raise ValueError(f"Candidate query absent from input: {row.qid}")
         query = queries[row.qid]
-        original = query.original_query
-        description = original.get("description") if isinstance(original, dict) else None
         records.append({
             "qid": row.qid, "doc_id": row.docno,
             "bm25_rank": int(row.rank) + 1, "bm25_score": float(row.score),
-            "query": retrieval_text(query), "description": description,
+            "query": retrieval_text(query), "description": reranking_text(query),
+            "reranking_field": reranking_field(query),
             "text": texts[row.docno], "metadata": metadata.get(row.docno, {}),
         })
     return records
