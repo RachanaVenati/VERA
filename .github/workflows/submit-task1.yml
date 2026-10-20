@@ -9,7 +9,7 @@ on:
         options:
           - '50'
           - '100'
-        default: '50'
+        default: '100'
       spot_check_dataset:
         description: 'Public collection to validate before upload'
         type: choice

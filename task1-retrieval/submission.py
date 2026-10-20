@@ -107,7 +107,7 @@ class AuditedScorer:
               type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option("--output", envvar="outputDir", required=True,
               type=click.Path(file_okay=False, path_type=Path))
-@click.option("--candidate-k", default=50, show_default=True, type=click.IntRange(1, 1000))
+@click.option("--candidate-k", default=100, show_default=True, type=click.IntRange(1, 1000))
 @click.option("--mode", default="rerank", type=click.Choice(["rerank", "bm25"]), show_default=True)
 @click.option("--batch-size", default=16, type=click.IntRange(1), show_default=True)
 @click.option("--case-budget-seconds", default=240.0, type=click.FloatRange(min=10), show_default=True)

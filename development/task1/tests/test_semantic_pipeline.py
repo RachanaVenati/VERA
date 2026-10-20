@@ -87,6 +87,7 @@ class SemanticPipelineTest(unittest.TestCase):
                     "--semantic-mode", "audit", "--semantic-model-path", str(model_path)])
             self.assertEqual(result.exit_code, 0, result.output + repr(result.exception))
             summary = json.loads((root / "out/summary.json").read_text())
+            self.assertEqual(summary["candidate_k"], 100)
             self.assertEqual(summary["retrieval_field"], "query")
             self.assertEqual(summary["reranking_field"], "description")
             self.assertEqual(summary["semantic_audit"]["multi_member_groups"], 1)

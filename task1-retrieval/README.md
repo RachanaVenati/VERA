@@ -8,7 +8,7 @@ outbound network are needed at runtime. Models are downloaded during the build.
 
 1. Build a language-specific BM25 index of the supplied documents.
 2. Retrieve up to 1,000 documents per query using only the short `query` field.
-3. Rerank up to 50 candidates using nonempty `original_query.description` (otherwise `query`) and a multilingual
+3. Rerank up to 100 candidates using nonempty `original_query.description` (otherwise `query`) and a multilingual
    cross-encoder. Narrative and relevance judgments are not used.
 4. Score long documents in overlapping chunks: 512 total tokens per pair,
    64 document tokens of overlap, maximum chunk logit as the document score.
