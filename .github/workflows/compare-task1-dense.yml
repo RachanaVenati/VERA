@@ -1,0 +1,59 @@
+name: Compare dense-only and BM25 retrieval
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: task1-dense-comparison
+  cancel-in-progress: false
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset:
+          - retrieval-de-spot-check
+          - retrieval-en-spot-check
+          - retrieval-hessian-law-de-spot-check
+    env:
+      DATASET: ${{ matrix.dataset }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build image with pinned local embedding model
+        run: docker build --platform linux/amd64 --provenance=false --build-arg INCLUDE_SEMANTIC_MODEL=1 -t vera-dense-test task1-retrieval
+      - name: Test exact vector search and document aggregation
+        run: |
+          docker run --rm --network none -v "$PWD:/workspace:ro" --entrypoint python3 \
+            vera-dense-test -m unittest discover -s /workspace/development/task1/dense -p 'test_*.py'
+      - name: Prepare inputs without relevance judgments
+        run: |
+          mkdir -p inputs results/dense results/bm25
+          cp "datasets/$DATASET/documents.jsonl.gz" "datasets/$DATASET/queries.jsonl" inputs/
+      - name: Fresh BM25-only reference
+        run: |
+          docker run --rm --network none --cpus 4 --memory 6g \
+            -v "$PWD/inputs:/input:ro" -v "$PWD/results/bm25:/output" vera-dense-test \
+            --dataset /input --output /output --mode bm25
+      - name: Exact full-corpus dense retrieval on four CPU cores
+        run: |
+          timeout 13000 docker run --rm --network none --cpus 4 --memory 6g \
+            -v "$PWD/inputs:/input:ro" -v "$PWD/results/dense:/output" -v "$PWD:/workspace:ro" \
+            --entrypoint python3 vera-dense-test /workspace/development/task1/dense/retrieve.py \
+            --dataset /input --output /output
+      - name: Evaluate both runs after retrieval
+        run: |
+          docker run --rm --network none -e PYTHONPATH=/app:/workspace/development/task1/scripts \
+            -v "$PWD:/workspace:ro" -v "$PWD/results:/results" --entrypoint python3 \
+            vera-dense-test /workspace/development/task1/dense/evaluate.py \
+            --results /results --truths "/workspace/datasets/$DATASET"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dense-comparison-${{ matrix.dataset }}
+          path: results/
+          retention-days: 14
