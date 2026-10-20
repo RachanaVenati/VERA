@@ -3,6 +3,21 @@ name: Submit Task 1 to TIRA
 on:
   workflow_dispatch:
     inputs:
+      candidate_k:
+        description: 'BM25 candidate pool for description-based reranking'
+        type: choice
+        options:
+          - '50'
+          - '100'
+        default: '50'
+      spot_check_dataset:
+        description: 'Public collection to validate before upload'
+        type: choice
+        options:
+          - retrieval-de-spot-check-20260816-training
+          - retrieval-en-spot-check-20260816-training
+          - retrieval-hessian-law-de-spot-check-20260902-training
+        default: retrieval-de-spot-check-20260816-training
       semantic_mode:
         description: 'Semantic detection (audit preserves every document)'
         type: choice
@@ -28,6 +43,8 @@ jobs:
       PYTHONUNBUFFERED: '1'
       VERA_DOCKER_TIMEOUT_SECONDS: '600'
       SEMANTIC_MODE: ${{ inputs.semantic_mode }}
+      CANDIDATE_K: ${{ inputs.candidate_k }}
+      SPOT_CHECK_DATASET: ${{ inputs.spot_check_dataset }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,16 +78,18 @@ jobs:
         run: |
           include_semantic=0
           if [ "$SEMANTIC_MODE" = "audit" ]; then include_semantic=1; fi
+          case "$CANDIDATE_K" in 50|100) ;; *) echo 'Candidate pool must be 50 or 100'; exit 1 ;; esac
           python development/task1/scripts/tira_cli_local.py code-submission \
             --path task1-retrieval \
             --task uniagent-2026 \
             --tira-vm-id vera \
-            --dataset retrieval-de-spot-check-20260816-training \
+            --dataset "$SPOT_CHECK_DATASET" \
             --platform linux/amd64 \
             --build-args="--output type=docker --provenance=false --build-arg INCLUDE_SEMANTIC_MODEL=$include_semantic" \
-            --command "python3 /app/submission.py --dataset \$inputDataset --output \$outputDir --semantic-mode $SEMANTIC_MODE"
+            --command "python3 /app/submission.py --dataset \$inputDataset --output \$outputDir --candidate-k $CANDIDATE_K --semantic-mode $SEMANTIC_MODE --ranking-strategy cross-encoder"
 
       - name: Record completion
         run: |
           echo 'Task 1 uploaded to TIRA for team vera. Find its generated name in the upload step logs.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate pool: $CANDIDATE_K; semantic mode: $SEMANTIC_MODE; ranking: cross-encoder." >> "$GITHUB_STEP_SUMMARY"
           echo 'Select that software in UniAgent 2026 on TIRA to launch remote evaluation.' >> "$GITHUB_STEP_SUMMARY"

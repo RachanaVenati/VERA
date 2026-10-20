@@ -10,6 +10,10 @@ metadata; the Docker build context remains `task1-retrieval`.
 2. On GitHub, open **Settings → Secrets and variables → Actions → New repository
    secret**. Name it `TIRA_TOKEN` and paste your TIRA token as the value.
 3. Open **Actions → Submit Task 1 to TIRA → Run workflow**. Select `main`.
+   Select `candidate_k=100` for the tested larger reranking pool (default is
+   still 50). Select a spot-check dataset; Hessian law is available for validating
+   the legal retrieval experiment. The uploaded command preserves this pool
+   size for subsequent TIRA executions, independently of the spot-check choice.
    Leave `semantic_mode` at `off` for the established pipeline, or choose
    `audit` to detect potential semantic duplicates before reranking without
    removing IDs. Audit mode adds model/runtime cost and review artifacts.
