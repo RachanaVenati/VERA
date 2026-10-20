@@ -26,7 +26,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build isolated Jina environment and smoke-test actual model
-        run: docker build -t vera-jina-test development/task1/jina
+        run: docker build --platform linux/amd64 --provenance=false -t vera-jina-test task1-jina
       - name: Test persistent index and exact search
         run: |
           docker run --rm --network none -v "$PWD:/workspace:ro" --entrypoint python vera-jina-test \

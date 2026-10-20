@@ -1,0 +1,45 @@
+name: Validate standalone Jina TIRA package
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build amd64 image and verify actual offline model calls
+        run: docker build --platform linux/amd64 --provenance=false -t vera-jina-submit task1-jina
+      - name: Test submission flow and index integrity offline
+        run: |
+          docker run --rm --network none -v "$PWD:/workspace:ro" --entrypoint python vera-jina-submit \
+            -m unittest discover -s /workspace/development/task1/jina -p 'test_*.py'
+      - name: Stage public inputs without judgments
+        run: |
+          mkdir -p inputs results
+          cp datasets/retrieval-hessian-law-de-spot-check/documents.jsonl.gz inputs/
+          cp datasets/retrieval-hessian-law-de-spot-check/queries.jsonl inputs/
+      - name: Run standalone package with no web access
+        run: |
+          timeout 13000 docker run --rm --network none --cpus 4 --memory 6g \
+            -v "$PWD/inputs:/input:ro" -v "$PWD/results:/output" vera-jina-submit \
+            --dataset /input --output /output
+      - name: Evaluate final output
+        run: |
+          docker run --rm --network none -v "$PWD:/workspace:ro" -v "$PWD/results:/results" \
+            --entrypoint python vera-jina-submit /workspace/development/task1/jina/evaluate.py \
+            --results /results --qrels /workspace/datasets/retrieval-hessian-law-de-spot-check/qrels.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jina-standalone-validation
+          path: |
+            results/run.txt.gz
+            results/run-trace.jsonl.log.gz
+            results/summary.json
+            results/evaluation.json
+            results/index/manifest.json
+          retention-days: 14

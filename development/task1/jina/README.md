@@ -53,3 +53,8 @@ max-chunk aggregation with synthetic vectors.
 [Official model card](https://huggingface.co/jinaai/jina-embeddings-v5-text-nano)
 provides the retrieval task API and requirements. The model's license is
 CC-BY-NC-4.0, as specified in its card.
+
+The canonical runtime and Docker build now live in `task1-jina/`. The development
+entry point and vector store delegate there. Build with
+`docker build -t vera-jina-test task1-jina`; the comparison workflow uses this
+standalone package. See its README for batching, logging, and reusable-index checks.
