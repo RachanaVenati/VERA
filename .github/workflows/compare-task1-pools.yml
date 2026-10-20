@@ -1,0 +1,112 @@
+name: Compare Task 1 candidate pools
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: 'Collection to compare at top 50 and top 100'
+        type: choice
+        options:
+          - retrieval-hessian-law-de-spot-check
+          - retrieval-de-spot-check
+          - retrieval-en-spot-check
+        default: retrieval-hessian-law-de-spot-check
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task1-candidate-pool-comparison
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate_k: [50, 100]
+    env:
+      DATASET: ${{ inputs.dataset }}
+      CANDIDATE_K: ${{ matrix.candidate_k }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build unchanged submission image
+        run: docker build --platform linux/amd64 --provenance=false -t vera-pool-test task1-retrieval
+      - name: Test candidate coverage and field separation
+        run: |
+          for test in test_candidate_pool.py test_semantic_pipeline.py test_small_subset_evaluation.py; do
+            docker run --rm --network none -e PYTHONPATH=/app:/workspace/development/task1/scripts \
+              -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:/workspace:ro" --entrypoint python3 \
+              vera-pool-test -m unittest discover -s /workspace/development/task1/tests -p "$test"
+          done
+      - name: Run requested candidate pool without relevance judgments
+        run: |
+          mkdir -p inputs results
+          cp "datasets/$DATASET/documents.jsonl.gz" "datasets/$DATASET/queries.jsonl" inputs/
+          docker run --rm --network none --platform linux/amd64 --cpus 4 --memory 6g \
+            -v "$PWD/inputs:/input:ro" -v "$PWD/results:/output" vera-pool-test \
+            --dataset /input --output /output --candidate-k "$CANDIDATE_K" \
+            --semantic-mode off --ranking-strategy cross-encoder --case-budget-seconds 240
+      - name: Evaluate nDCG and candidate coverage
+        run: |
+          docker run --rm --network none -e PYTHONPATH=/app:/workspace/development/task1/scripts \
+            -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:/workspace:ro" -v "$PWD/results:/results" \
+            --entrypoint python3 vera-pool-test /workspace/development/task1/scripts/evaluate_candidate_pool.py \
+            --source /results --truths "/workspace/datasets/$DATASET" --output /results/evaluation.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-pool-${{ matrix.candidate_k }}
+          path: |
+            results/evaluation.json
+            results/summary.json
+            results/run.txt.gz
+            results/reranking-scores.jsonl.gz
+          retention-days: 14
+
+  summarize:
+    needs: evaluate
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: candidate-pool-*
+          path: comparisons
+      - name: Summarize measured pool-size tradeoff
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          reports = [json.loads(p.read_text()) for p in Path('comparisons').glob('*/evaluation.json')]
+          reports.sort(key=lambda r: r['candidate_k'])
+          assert [r['candidate_k'] for r in reports] == [50, 100]
+          assert reports[0]['dataset'] == reports[1]['dataset']
+          for report in reports:
+              assert report['source_summary']['semantic_audit']['mode'] == 'off'
+          targets = lambda r: {(q['qid'], d['doc_id']): d['bm25_rank'] for q in r['coverage']['per_query'] for d in q['targets']}
+          assert targets(reports[0]) == targets(reports[1]), 'Initial BM25 target ranks changed between runs'
+          for key in ('model', 'revision', 'retrieval_field', 'reranking_field', 'case_budget_seconds'):
+              assert reports[0]['source_summary'][key] == reports[1]['source_summary'][key]
+          lines = ['| Pool | nDCG@10 | Candidate recall | Scored recall | Total seconds | Limited queries |',
+                   '|---|---:|---:|---:|---:|---|']
+          for r in reports:
+              c, s = r['coverage'], r['source_summary']
+              lines.append(f"| {r['candidate_k']} | {r['metrics']['nDCG@10']:.6f} | {c['candidate_recall']:.4f} | {c['scored_recall']:.4f} | {s['seconds']:.1f} | {s['budget_limited_queries']} |")
+          text = '\n'.join(lines) + '\n\nFresh runs with the same model and query budget. No automatic TIRA submission or default change.\n'
+          Path('pool-comparison.md').write_text(text)
+          Path('pool-comparison.json').write_text(json.dumps(reports, indent=2))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
+              stream.write(text)
+          print(text)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-pool-comparison
+          path: |
+            pool-comparison.md
+            pool-comparison.json
