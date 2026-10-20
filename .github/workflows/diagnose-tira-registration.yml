@@ -1,0 +1,63 @@
+name: Diagnose TIRA registration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r development/task1/requirements-cli.txt
+      - name: Authenticate
+        env:
+          TIRA_TOKEN: ${{ secrets.TIRA_TOKEN }}
+        run: python development/task1/scripts/tira_cli_local.py login --token "$TIRA_TOKEN"
+      - name: Inspect authentication, software list, and uploaded image
+        run: |
+          python - <<'PY'
+          import json, requests
+          from tira.rest_api_client import Client
+          c = Client()
+          headers = c.authentication_headers()
+          headers['Accept'] = 'application/json'
+          secrets = [str(v) for k,v in headers.items() if k.lower() in ('api-key','cookie','authorization')]
+          def clean(value):
+              text = json.dumps(value)
+              for secret in secrets:
+                  if secret:
+                      text = text.replace(secret, '[REDACTED]')
+              return text
+          def summarize(route):
+              response = requests.get(c.base_url + route, headers=headers, timeout=30)
+              data = response.json()
+              print(route, 'HTTP', response.status_code, clean({k:data.get(k) for k in ('status','error_type','errors','detail','message') if k in data}))
+              context = data.get('context', {})
+              print('Context keys:', list(context) if isinstance(context, dict) else type(context).__name__)
+              def software_entries(node):
+                  if isinstance(node, dict):
+                      if 'display_name' in node:
+                          print('Software:', clean({k:node[k] for k in ('display_name','vm_id','image','command','docker_software_id','source_code_commit') if k in node}))
+                      for key, value in node.items():
+                          if not any(word in key.lower() for word in ('docker_registry','password','token','csrf','api_key','cookie')):
+                              software_entries(value)
+                  elif isinstance(node, list):
+                      for value in node:
+                          software_entries(value)
+              software_entries(context)
+          summarize('/api/role')
+          summarize('/api/task/uniagent-2026/user/vera')
+          summarize('/api/task/uniagent-2026/public-submissions')
+          result = c.execute_post_return_json('/v1/admin/validate-docker-image', json_payload={
+              'image':'latest', 'repository_name':'registry.webis.de/code-research/tira/tira-user-vera/task1-retr'})
+          print('Uploaded image inspection:', clean(result))
+          PY
