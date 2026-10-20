@@ -1,0 +1,53 @@
+name: Test Jina Nano vector retrieval
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: 'Collection to embed and search'
+        type: choice
+        options:
+          - retrieval-hessian-law-de-spot-check
+          - retrieval-de-spot-check
+          - retrieval-en-spot-check
+        default: retrieval-hessian-law-de-spot-check
+permissions:
+  contents: read
+concurrency:
+  group: task1-jina-experiment
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    env:
+      DATASET: ${{ inputs.dataset }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build isolated Jina environment and smoke-test actual model
+        run: docker build -t vera-jina-test development/task1/jina
+      - name: Test persistent index and exact search
+        run: |
+          docker run --rm --network none -v "$PWD:/workspace:ro" --entrypoint python vera-jina-test \
+            -m unittest discover -s /workspace/development/task1/jina -p 'test_*.py'
+      - name: Prepare inputs without judgments
+        run: |
+          mkdir -p inputs results
+          cp "datasets/$DATASET/documents.jsonl.gz" "datasets/$DATASET/queries.jsonl" inputs/
+      - name: Build local vectors and search the full corpus offline
+        run: |
+          timeout 13000 docker run --rm --network none --cpus 4 --memory 6g \
+            -v "$PWD/inputs:/input:ro" -v "$PWD/results:/output" vera-jina-test \
+            --dataset /input --output /output
+      - name: Evaluate after retrieval
+        run: |
+          docker run --rm --network none -v "$PWD:/workspace:ro" -v "$PWD/results:/results" \
+            --entrypoint python vera-jina-test /workspace/development/task1/jina/evaluate.py \
+            --results /results --qrels "/workspace/datasets/$DATASET/qrels.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jina-nano-${{ inputs.dataset }}
+          path: results/
+          retention-days: 7
