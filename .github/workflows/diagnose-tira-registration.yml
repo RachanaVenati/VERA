@@ -56,7 +56,9 @@ jobs:
               software_entries(context)
           summarize('/api/role')
           summarize('/api/task/uniagent-2026/user/vera')
+          summarize('/api/submissions-for-task/uniagent-2026/vera/docker')
           summarize('/api/task/uniagent-2026/public-submissions')
+          summarize('/task/uniagent-2026/vm/vera/add_software/docker')
           result = c.execute_post_return_json('/v1/admin/validate-docker-image', json_payload={
               'image':'latest', 'repository_name':'registry.webis.de/code-research/tira/tira-user-vera/task1-retr'})
           print('Uploaded image inspection:', clean(result))
